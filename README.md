@@ -349,6 +349,23 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ---
 
+## 问题、建议反馈链接和渠道
+
+1. **交流、反馈和内测体验QQ群**：https://qm.qq.com/q/DF7nsBatFu
+2. **建议、问题反馈问卷**：https://wj.qq.com/s2/28029808/2aab/
+3. **发布者邮箱**：andforlin@foxmail.com
+4. **redroid容器和穿云投屏容器作者的容器专门反馈链接**：见「致谢和导向链接」章节
+（提供的反馈链接和渠道除第四条以外都会回复，因为第四条是对容器的问题和建议的专门反馈渠道，与软件本身无关；如果在反馈之后后续处理结果不满意或者想为软件添砖加瓦的，你可以使用源代码进行修改，按照飞牛官方打包教程之后还是按照前三条的反馈链接和渠道进行上传，发布者对上传的代码进行审计之后，会邀请你一起成为贡献者，为软件作出奉献；也感谢对软件本身的问题提出反馈、建议或者提供实质性帮助的人员）
+
+---
+
+## 对发布者和其他贡献者的支持
+
+如果你觉得这个软件很好或者对发布者本身感到满意的，希望通过赞赏的形式多多支持，让发布者和其他贡献者得以继续维护软件，无论赞赏多少或者是不赞赏，都在此感谢；在支付的时候请在备注上标注赞赏，感谢。
+或者给一个star支持一下项目也行。
+
+---
+
 ## 开源许可
 
 本项目为非官方第三方应用，按"现状"提供，使用风险自负。
@@ -361,7 +378,7 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ---
 
-## 致谢
+## 致谢和导向链接
 
 - [redroid 项目](https://github.com/remote-android/redroid-doc) — Android in Docker
 - [穿云投屏 scrcpy-over-webrtc](https://github.com/hqw700/ScrcpyOverWebRTC) — WebRTC 画面服务
