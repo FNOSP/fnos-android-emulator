@@ -361,7 +361,8 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ## 对发布者和其他贡献者的支持
 
-如果你觉得这个软件很好或者对发布者本身感到满意的，希望通过赞赏的形式多多支持，让发布者和其他贡献者得以继续维护软件，无论赞赏多少或者是不赞赏，都在此感谢；在支付的时候请在备注上标注赞赏，感谢。
+<img width="4096" height="2926" alt="a61d0506ea65c87e4dd005f21325eda6" src="https://github.com/user-attachments/assets/1ad0e1e8-e03e-4966-a94d-24dff71981ba" />
+如果你觉得这个软件很好或者对发布者本身感到满意的，希望能赞赏多多支持一下，让发布者和其他贡献者得以继续维护软件，无论赞赏多少或者是不赞赏，都在此感谢；在支付的时候请在备注上标注赞赏，感谢。
 或者给一个star支持一下项目也行。
 
 ---
@@ -380,6 +381,12 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ## 致谢和导向链接
 
-- [redroid 项目](https://github.com/remote-android/redroid-doc) — Android in Docker
-- [穿云投屏 scrcpy-over-webrtc](https://github.com/hqw700/ScrcpyOverWebRTC) — WebRTC 画面服务
+导向链接：
+1.redroid容器项目链接：https://github.com/remote-android/redroid-doc
+2.穿云投屏容器项目链接：https://github.com/hqw700/ScrcpyOverWebRTC
+3.穿云投屏官方文档：https://webrtc-phone.com/docs/
+4.穿云投屏官方网站：https://webrtc-phone.com/
+致谢：
+- [redroid 项目] — Android in Docker
+- [穿云投屏 scrcpy-over-webrtc] — WebRTC 画面服务
 - 飞牛 fnOS 开发社区
