@@ -2,7 +2,7 @@
 
 在飞牛 fnOS 上一键运行 Android 12 虚拟机，通过浏览器远程操控，支持 WebRTC / WebSocket 双投屏模式、ADB 连接、APK 安装、文件管理等。
 
-基于Android 容器+穿云投屏 scrcpy-over-webrtc（画面服务）双容器架构，适配飞牛统一网关。
+基于 Android 容器+穿云投屏 scrcpy-over-webrtc（画面服务）双容器架构，适配飞牛统一网关。
 
 ---
 
@@ -74,7 +74,7 @@
 
 在飞牛应用中心点击「打开」，或直接访问：
 ```
-https://<NAS_IP>:65535/app/androidemu/
+https://<NAS_IP>:<NAS_端口>/app/androidemu/
 ```
 也可直接访问画面服务原生端口：
 ```
@@ -83,7 +83,7 @@ https://<NAS_IP>:8443
 
 局域网下 WebRTC 投屏可正常使用，低延迟、高帧率，所有功能（文件管理、终端、投屏设置等）均可用。
 
-### 飞牛官方远程域名（a-xxx.fnos.net）
+### 飞牛官方远程域名（xxx.fnos.net）
 
 通过飞牛官方提供的远程域名访问时：
 - ✅ WebSocket 投屏自动启用，可正常观看和操控画面
@@ -116,7 +116,7 @@ https://<NAS_IP>:8443
 | 用户名 | `admin` |
 | 密码 | `admin123` |
 
-> 通过飞牛统一网关访问时会自动注入登录态，无需手动输入。直接访问 8443 端口时需要手动登录。
+> 通过飞牛统一网关访问时会自动注入登录态，无需手动输入。直接访问 8443 端口时需要手动登录，登录之后请更改账号和密码。
 
 ---
 
@@ -137,7 +137,7 @@ adb shell
 2. 选择 APK 文件上传
 3. 在安卓容器中点击文件管理器中的 APK 进行安装
 
-> **注意**：内置模拟器为 x86_64 架构，不含谷歌服务。镜像已内置 ARM 翻译层，大多数 ARM 应用可运行；但强依赖谷歌服务、或含反模拟器检测的 ARM64 应用可能闪退。此类应用建议通过穿云投屏 Agent 接入真机使用。
+> **注意**：内置模拟器为 x86_64 架构，不含谷歌服务。镜像已内置 ARM 翻译层，大多数 ARM 应用可运行；但强依赖谷歌服务、或含反模拟器检测的 ARM64 应用可能闪退。此类应用建议通过穿云投屏 Agent 接入真机使用或者根据上游redroid容器作者的谷歌服务推荐配置来进行。
 
 ---
 
@@ -233,7 +233,7 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 
 ### Q: 打开后显示「未授权」或「0 台在线」
 
-A: 这是穿云投屏的 License 授权提示。新安装的设备有三个月免费试用期，等待容器完全启动（约 1-2 分钟）后刷新页面即可。若持续未授权，请检查容器是否正常运行：
+A: 这是穿云投屏的 License 授权提示。新安装的设备目前有20台设备三个月免费试用期（自2026年11月1日，到期为10台设备，其他基础功能均为免费），等待容器完全启动（约 1-2 分钟）后刷新页面即可。若持续未授权，请检查容器是否正常运行：
 ```bash
 docker ps --filter name=androidemu
 ```
@@ -362,5 +362,5 @@ docker volume rm androidemu_data androidemu-webrtc-data
 ## 致谢
 
 - [redroid 项目](https://github.com/remote-android/redroid-doc) — Android in Docker
-- [穿云投屏 scrcpy-over-webrtc](https://github.com/buutuu/scrcpy-over-webrtc) — WebRTC 画面服务
+- [穿云投屏 scrcpy-over-webrtc](https://github.com/hqw700/ScrcpyOverWebRTC) — WebRTC 画面服务
 - 飞牛 fnOS 开发社区
