@@ -1,5 +1,11 @@
 # androidemu — 安卓模拟器 / 云手机
 
+**中文** | [English](README.en.md)
+
+![version](https://img.shields.io/badge/version-v3.6.4-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+
+📚 **使用手册与常见问题**：见本文档下方各章节
+
 在飞牛 fnOS 上一键运行 Android 12 虚拟机，通过浏览器远程操控，支持 WebRTC / WebSocket 双投屏模式、ADB 连接、APK 安装、文件管理等。
 
 基于 Android 容器+穿云投屏 scrcpy-over-webrtc（画面服务）双容器架构，适配飞牛统一网关。
@@ -280,62 +286,18 @@ A: 在飞牛应用中心点击「卸载」即可。容器数据（安卓 /data �
 docker volume rm androidemu_data androidemu-webrtc-data
 ```
 
----
+### 技术说明与开发踩坑
 
-## 版本历史与踩坑记录
+以下是开发过程中验证过的关键技术结论，供二次开发参考：
 
-### v3.6.x — 容器启动稳定性修复
-
-- **v3.6.1**：加回 console=0（确认安全，之前一直没问题）；精简后台服务（NFC/打印/备份/蓝牙，共6个）；nice=-10 保持；use_memfd=1 永久移除
-- **v3.6.0**：修复安卓容器无法启动 — 根因是 androidboot.use_memfd=1 导致 LocationManagerService 崩溃（"Unable to find a direct boot aware fused location provider"），init 杀掉 zygote 及所有系统服务，内存从600-700MB降到400MB。移除 use_memfd=1 和 console=0 后恢复
-- **踩坑教训**：com.android.location.fused 绝对不能禁用（LocationManagerService 依赖项，禁用会导致 system_server 崩溃）；use_memfd=1 在 redroid 12 上不安全
-
-### v3.5.x — 非 root 改造与 ICE 修复
-
-- **v3.5.9**：性能优化（webrtc/turn 进程 nice=-10、禁用后台服务、CPU 动态调频最低40%）；动画和壁纸保持系统默认
-- **v3.5.8**：首次尝试性能优化（禁用动画+黑色壁纸），后因用户反馈回退动画和壁纸
-- **v3.5.7**：根本性修复 ICE_SERVERS 传递问题 — install_callback 同时替换 ICE_SERVERS 中的 IP；entrypoint 新增 IP 兜底检测（自动修正 127.0.0.1 / Docker 网桥地址 172.x）
-- **v3.5.6**：ICE_SERVERS 直接在 docker-compose environment 中设置，不依赖 entrypoint 的 export/su 传递（BusyBox su 会重置环境变量）
-- **v3.5.3-3.5.5**：多轮修复非 root 改造导致的 ICE_SERVERS 丢失问题 — 尝试 setpriv（BusyBox 不支持 --reuid）、su -c 内部 export（子 shell 展开为空），最终在 compose 中直接设置环境变量解决
-- **v3.5.2**：修复源文件硬编码 ARM IP（192.168.9.2）导致 X86 部署后 PUBLIC_IP 错误的问题
-- **v3.5.1**：修复 install_callback sed 只匹配硬编码 IP、不匹配变量引用格式的问题；修复 hostname -I 返回 Docker 网桥地址（172.x）而非局域网 IP 的问题
-- **v3.5.0**：画面服务容器内非 root 运行（appuser uid=1000），turnserver 和 webrtc-signaling 均降权启动
-
-### v3.4.x — 投屏稳定性修复
-
-- 修复 WS 投屏后自动刷新回首页的 bug（RUNTIME_SHIM 劫持了所有 WebSocket，断开时无条件 location.reload()）
-- 修复 watchdog 误判 audio:false 为"缺失默认键"并反复重建容器的问题（ensure_once 端口在听就直接 return）
-- 屏蔽终端按钮触发打印页面（RUNTIME_SHIM 屏蔽 window.print）
-- 外网访问自动切换 WebSocket 投屏 + 提示条
-
-### v3.3.x — 容器优化与稳定性
-
-- 简体中文 + 中国时区默认（zh_CN / Asia/Shanghai）
-- 串口控制台默认关闭（androidboot.console=0，减少性能损耗）
-- 禁用蓝牙（pm disable 彻底禁用，svc disable 会被系统自动重启）
-- 自定义 entrypoint 修复 TURN 监听地址（listening-ip=0.0.0.0，原镜像只监听 Docker 网桥 172.x）
-- 禁用音频（redroid 只有 Codec2 版 Opus 编码器，scrcpy 只识别 OMX 版，开启会 createEncoder 失败并断流）
-
-### v3.0.x — Python 重写网关
-
-- Python 重写网关服务（gateway.py），纯标准库，无外部依赖
-- 飞牛统一网关完整适配（子路径 /app/androidemu/）
-- 自动登录注入，无需二次输入账号密码
-- RUNTIME_SHIM 运行时前缀拦截器（fetch/XHR/WebSocket/setAttribute/MutationObserver）
-- WebSocket 代理（保留 Connection: Upgrade 头）
-
-### v2.0.x — 双架构合一
-
-- X86 / ARM 双架构合一安装包（androidemu_all_x.x.x.fpk）
-- 安装时自动检测架构和 GPU 能力（tune_compose.sh）
-- ADB 端口改用 socat 转发（fnOS Docker 无宿主回环能力，bridge 容器无法访问宿主局域网 IP）
-- webrtc 容器改用 host 网络（确保云手机 Agent 能直连宿主信令/TURN 端口）
-
-### v1.0.x — 初始版本
-
-- 初始版本：redroid + scrcpy-over-webrtc 双容器
-- 镜像加速源（DaoCloud 免注册 + Docker Hub 回退）
-- 经历 Docker Hub 连接超时、镜像拉取失败等问题
+- **com.android.location.fused 绝对不能禁用**：它是 LocationManagerService 的依赖项，禁用会导致 system_server 崩溃，安卓无法启动
+- **androidboot.use_memfd=1 在 redroid 12 上不安全**：会导致 LocationManagerService 崩溃，init 杀掉 zygote，内存从 600-700MB 降到 400MB，容器无法启动
+- **检测依赖应用应检测设备节点而非目录名**：应用中心显示名和实际目录名可能不一致，检测 `/dev/binder` 比检测 `/var/apps/binder_linux_driver` 更可靠
+- **WebSocket 代理必须覆盖所有 ws/wss URL**：不能只覆盖特定路径，否则通过网关访问时其他路径会直连 8443 端口导致跨域失败
+- **BusyBox su 会重置环境变量**：非 root 改造时不能用 su -c 内部 export 传递环境变量，应直接在 docker-compose environment 中设置
+- **禁用蓝牙要用 pm disable 而非 svc disable**：svc disable 会被系统自动重启，pm disable 才能彻底禁用
+- **fnOS Docker 无宿主回环能力**：bridge 容器无法访问宿主局域网 IP，ADB 端口需要用 socat 转发
+- **redroid 安卓主容器必须 privileged**：上游官方要求，非特权方案实测无法开机，但仅作用于容器内部，应用本体不申请宿主 root
 
 ---
 
@@ -367,9 +329,9 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ---
 
-## 开源许可
+## 开源许可和免责声明
 
-本项目为非官方第三方应用，按"现状"提供，使用风险自负。
+### 开源许可
 
 - redroid：[Apache 2.0](http://www.apache.org/licenses)
 - scrcpy-over-webrtc（穿云投屏）：见上游项目
@@ -377,16 +339,28 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 上游组件出处与许可状态详见包内 `LICENSE` 文件。
 
+### 免责声明
+
+1. 本项目为非官方第三方应用，按"现状"提供，使用风险自负。
+2. 本项目仅用于学习和研究目的，不得用于任何违法用途。
+3. 使用本应用产生的任何数据丢失、系统故障、服务中断等问题，开发者不承担任何责任。
+4. 应用内集成的第三方组件（redroid、穿云投屏等）由各自作者维护，其功能和稳定性不受本项目控制。
+5. 用户应自行备份重要数据，本应用不对容器内数据的安全性和完整性做出保证。
+6. 本应用不收集任何用户数据，所有数据均存储在用户本地设备中。
+
 ---
 
 ## 致谢和导向链接
 
-导向链接：
+### 导向链接
+
 1. redroid容器项目链接：https://github.com/remote-android/redroid-doc
 2. 穿云投屏容器项目链接：https://github.com/hqw700/ScrcpyOverWebRTC
 3. 穿云投屏官方文档：https://webrtc-phone.com/docs/
 4. 穿云投屏官方网站：https://webrtc-phone.com/
-致谢：
+
+### 致谢
+
 - [redroid 项目] — Android in Docker
 - [穿云投屏 scrcpy-over-webrtc] — WebRTC 画面服务
 - 飞牛 fnOS 开发社区
