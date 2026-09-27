@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.6.4-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.6.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -16,6 +16,7 @@
 ## 目录
 
 - [功能特性](#功能特性)
+- [更新日志](#更新日志)
 - [安装要求](#安装要求)
 - [安装方法](#安装方法)
 - [访问方式](#访问方式)
@@ -25,6 +26,7 @@
 - [性能优化](#性能优化)
 - [串口控制台（开发者调试）](#串口控制台开发者调试)
 - [容器架构](#容器架构)
+- [审核合规性说明](#审核合规性说明)
 - [常见问题](#常见问题)
 - [已知限制](#已知限制)
 - [问题、建议反馈链接和渠道](#问题建议反馈链接和渠道)
@@ -48,9 +50,47 @@
 - **串口控制台**：默认关闭以减少性能损耗，开发者可手动开启用于调试（见下文）
 - **穿云投屏 Agent 接入**：支持接入多台安卓设备/真机，统一管理
 - **简体中文 + 中国时区**：容器默认 `zh_CN` + `Asia/Shanghai`
-- **非 root 运行**：画面服务容器内以普通用户（appuser）运行，符合上架审核要求
+- **应用本体非 root 运行**：gateway.py 等后台进程以 `docker-androidemu` 用户运行（v3.6.5+），符合上架审核要求
 - **X86 / ARM 双平台**：自动检测架构和 GPU 能力，X86 用硬件加速，ARM 自动切软件渲染
 - **性能优化**：webrtc/turn 进程高优先级调度、精简后台服务、CPU 动态调频（见下文）
+- **安装/更新中断安全**：安装或更新中途取消会自动清理临时数据，避免占位导致下次无法安装（v3.6.0+）
+- **自动容器检测**：网关自动检测安卓容器状态，容器启动后自动上线，无需手动操作
+
+---
+
+## 更新日志
+
+### v3.6.6（2026-09-27）
+
+**修复：**
+- 修复升级时 `uninstall_init` 脚本执行异常导致的「无法更新 - 执行脚本出错且原因未知」错误
+  - 重写卸载脚本，增加更健壮的升级守卫（支持 TRIM_APP_STATUS / TRIM_OLD_APPVER / TRIM_TEMP_UPGRADE_FOLDER / TRIM_APP_OP 四种环境变量判断）
+  - 添加 `set +e` 确保任何命令失败都不会导致脚本异常退出
+  - 所有输出重定向到日志文件，stdout 保持干净
+  - 所有命令增加错误兜底
+- 清理 `upgrade_init` 中 `exit 0` 后的死代码（androidemu_release_drm 函数）
+
+### v3.6.5（2026-09-27）
+
+**修复：**
+- **gateway.py 降权**：应用本体后台进程从 root 降权为 `docker-androidemu` 用户运行，解决审核高风险项
+  - 添加 `_drop_privileges()` 函数，uid=0 时自动降权（os.setgroups → os.setgid → os.setuid）
+  - gw_socket.sh 的 bash 兜底启动也添加降权
+- **audio_fix.py 降权**：音频守护也以 `docker-androidemu` 用户运行，与 gateway.py 保持一致，解决 `is_mine()` 检查不到导致反复拉起的问题
+- **CRLF 行尾统一改为 LF**：所有文本文件统一使用 Unix 行尾（除 SHA256.txt），避免 Linux 下 `$'\r': command not found` 错误
+- **多实例僵尸进程修复**：fix_keystore.sh 和 fix_storage_perm.sh 启动时先清理旧进程，确保只保留一个实例
+  - 修复前：fix_keystore 有 8 个僵尸进程从 9 月 25-26 日运行至今
+  - 修复后：仅 1 个进程
+
+### v3.6.0 ~ v3.6.4
+
+- 屏蔽穿云投屏前端打印快捷键冲突（点击终端不再弹出打印页面）
+- 安装/更新中断自动清理临时数据
+- NAS 重启后应用自动恢复
+- 自动检测安卓容器机制优化
+- 安卓容器默认简体中文 + 中国时区
+- 默认关闭蓝牙和串口控制台
+- 性能优化：进程优先级提升、后台服务精简、CPU 动态调频
 
 ---
 
@@ -65,7 +105,7 @@
 | 存储 | 4 GB 可用 | 8 GB+（含镜像约 2GB） |
 | 网络 | 局域网 | — |
 
-> **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染；在下载应用之前必须安装binder_linux驱动（应用中心里面有，直接搜索就可以），否则无法使用或者被拒绝安装。
+> **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染；在下载应用之前必须安装 binder_linux 驱动（应用中心里面有，直接搜索就可以），否则无法使用或者被拒绝安装。
 > **ARM 设备**：自动使用软件渲染（gpu_mode=guest），无需额外驱动。
 
 ---
@@ -165,7 +205,7 @@ adb shell
 2. 选择 APK 文件上传
 3. 在安卓容器中点击文件管理器中的 APK 进行安装
 
-> **注意**：内置模拟器为 x86_64 架构，不含谷歌服务。镜像已内置 ARM 翻译层，大多数 ARM 应用可运行；但强依赖谷歌服务、或含反模拟器检测的 ARM64 应用可能闪退。此类应用建议通过穿云投屏 Agent 接入真机使用或者根据上游redroid容器作者的谷歌服务推荐配置来进行。
+> **注意**：内置模拟器为 x86_64 架构，不含谷歌服务。镜像已内置 ARM 翻译层，大多数 ARM 应用可运行；但强依赖谷歌服务、或含反模拟器检测/复杂 JIT 的 ARM64 应用可能启动即闪退（属翻译层能力边界）。此类应用建议通过穿云投屏 Agent 接入真机使用，或者根据上游 redroid 容器作者的谷歌服务推荐配置来进行。
 
 ---
 
@@ -186,7 +226,8 @@ webrtc 信令服务和 TURN 中继服务均以 `nice=-10` 启动（高于默认�
 - NFC 服务（`com.android.nfc`）— 容器无 NFC 硬件
 - 打印服务（`com.android.printspooler`）— 容器无需打印
 - 备份服务（`com.android.backupconfirm`、`com.android.sharedstoragebackup`）— 容器无需备份
-- 位置融合服务（`com.android.location.fused`）— 容器无 GPS 硬件
+
+> **注意**：`com.android.location.fused`（位置融合服务）不能禁用，它是 LocationManagerService 的依赖项，禁用会导致 system_server 崩溃，安卓无法启动。
 
 ### 3. CPU 动态调频
 
@@ -194,6 +235,7 @@ webrtc 信令服务和 TURN 中继服务均以 `nice=-10` 启动（高于默认�
 - 轻载时 CPU 不会降频过低，保证操作响应速度
 - 重载时自动升到最高频率，发挥全部性能
 - 仅在支持 cpufreq 的设备上生效，不支持则静默跳过
+- 不低于四核 CPU 的极限（动态调整，不会过度限制性能）
 
 ### 4. 串口控制台默认关闭
 
@@ -257,15 +299,77 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 
 ---
 
+## 审核合规性说明
+
+本应用已通过飞牛官方 7 条自查（基本信息、权限声明、网络端口、数据存储、启动停止、卸载清理、兼容性），以下为审核关注要点的详细说明：
+
+### 1. 特权容器（privileged）
+
+- **现状**：仅 `androidemu-android`（redroid 安卓主容器）使用 `privileged: true`，`androidemu-webrtc`（画面服务）为非特权运行
+- **必要性**：redroid 上游（remote-android/redroid-doc）官方部署方式即要求 `--privileged`，Android 依赖内核 binder 通信，容器需要挂载/访问 binder 设备并创建设备节点
+- **非特权方案已实测不可行**：非特权 + device_cgroup_rule + 挂载 binderfs + cap-add=ALL + seccomp=unconfined，容器以 ExitCode 0 静默退出、无法开机（redroid-doc issue #591 至今为开放议题）
+- **影响面控制**：特权仅作用于容器内部（容器内 root = Android 系统自身初始化所需），不等于宿主 root；应用本体以 `docker-androidemu` 用户运行，不申请宿主 root
+
+### 2. 应用本体非 root 运行（v3.6.5+）
+
+- gateway.py、audio_fix.py 等后台进程均以 `docker-androidemu` 用户运行
+- 通过 `_drop_privileges()` 函数实现自动降权（uid=0 时自动切换）
+- config/privilege 声明 `run-as=package`
+
+### 3. Host 网络模式
+
+- `androidemu-webrtc` 容器使用 `network_mode: host`
+- **原因**：fnOS 会拦截「bridge 容器 → 宿主局域网 IP」的访问，bridge 模式下云手机后台无法连接本机 ADB 端口
+- **影响面**：监听端口与原先端口映射完全一致（8443 TCP、3478 TCP/UDP、50000-50100 UDP），不新增任何端口；容器仍不使用 privileged
+
+### 4. Docker 组权限
+
+- 应用用户 `docker-androidemu` 属于 `docker` 组
+- 这是飞牛 Docker 应用的标准配置，运行容器必须
+- 仅用于应用脚本对本应用容器的编排与清理，不涉及其他应用
+
+### 5. 多端口监听
+
+| 端口 | 协议 | 用途 | 鉴权 |
+|------|------|------|------|
+| 8443 | TCP | WebRTC 信令+画面 | 账号登录 |
+| 3478 | TCP/UDP | TURN 中继 | TURN 凭据 |
+| 5556 | TCP | ADB 调试 | 默认仅本机，需手动开放 |
+| 50000-50100 | UDP | WebRTC 媒体流 | 会话级鉴权 |
+
+- 应用侧不做任何自动端口映射（无 UPnP/打洞），公网暴露由用户自行决定
+- 各端口均有独立鉴权机制
+
+### 6. 付费说明
+
+- 本应用自身完全免费
+- 内置的穿云投屏画面服务采用上游第三方授权：免费版即可使用云手机画面、ADB 调试等全部基础功能，仅「可添加设备数量」受限
+- 付费仅增加设备数量上限，不影响任何功能
+- 费用由上游授权服务方收取，与飞牛官方无关
+
+---
+
 ## 常见问题
 
 ### Q: 打开后显示「未授权」或「0 台在线」
 
-A: 这是穿云投屏的 License 授权提示。新安装的设备目前有20台设备三个月免费试用期（自2026年11月1日，到期为10台设备，其他基础功能均为免费），等待容器完全启动（约 1-2 分钟）后刷新页面即可。若持续未授权，请检查容器是否正常运行：
+A: 这是穿云投屏的 License 授权提示。新安装的设备目前有 20 台设备三个月免费试用期（自 2026 年 11 月 1 日，到期为 10 台设备，其他基础功能均为免费），等待容器完全启动（约 1-2 分钟）后刷新页面即可。若持续未授权，请检查容器是否正常运行：
 ```bash
 docker ps --filter name=androidemu
 ```
 <img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
+
+### Q: 升级时提示「无法更新 - 执行脚本出错且原因未知」
+
+A: 这是旧版本（v3.6.5 及之前）`uninstall_init` 脚本在升级流程中执行异常导致的。v3.6.6 已修复：
+- 重写卸载脚本，增加更健壮的升级守卫
+- 添加 `set +e` 确保任何命令失败都不会导致脚本异常退出
+- 所有输出重定向到日志，stdout 保持干净
+
+**解决方案**：下载 v3.6.6+ 版本，通过「手动安装」覆盖安装即可。若仍失败，可在 NAS 上查看日志：
+```bash
+cat /var/apps/androidemu/var/uninstall_init.log
+```
 
 ### Q: WebRTC 投屏连接失败
 
@@ -307,6 +411,14 @@ A: 在飞牛应用中心点击「卸载」即可。容器数据（安卓 /data �
 docker volume rm androidemu_data androidemu-webrtc-data
 ```
 
+### Q: 安装/更新中途取消后无法重新安装
+
+A: v3.6.0+ 已修复，安装/更新中途取消会自动清理临时数据。若使用旧版本遇到此问题，手动清理：
+```bash
+rm -rf /tmp/androidemu_*
+docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
+```
+
 ### 技术说明与开发踩坑
 
 以下是开发过程中验证过的关键技术结论，供二次开发参考：
@@ -319,6 +431,9 @@ docker volume rm androidemu_data androidemu-webrtc-data
 - **禁用蓝牙要用 pm disable 而非 svc disable**：svc disable 会被系统自动重启，pm disable 才能彻底禁用
 - **fnOS Docker 无宿主回环能力**：bridge 容器无法访问宿主局域网 IP，ADB 端口需要用 socat 转发
 - **redroid 安卓主容器必须 privileged**：上游官方要求，非特权方案实测无法开机，但仅作用于容器内部，应用本体不申请宿主 root
+- **升级脚本必须健壮**：飞牛升级流程先执行旧版本 uninstall_init，任何命令失败或 stdout 输出都会导致「执行脚本出错且原因未知」，必须 set +e + 输出重定向 + 所有命令 || true
+- **CRLF 行尾会导致 Linux 脚本报错**：所有 shell/Python 脚本必须使用 LF 行尾，否则会出现 `$'\r': command not found`
+- **应用本体降权需注意进程间通信**：gateway.py 降权后 `is_mine(pid)` 只能检查当前用户进程，音频守护也必须降权到同一用户，否则会被反复拉起
 
 ---
 
@@ -329,15 +444,16 @@ docker volume rm androidemu_data androidemu-webrtc-data
 3. **飞牛 APP**：部分版本 WebView 对 WebSocket 代理支持有限，建议用手机浏览器
 4. **ARM 应用兼容性**：强依赖谷歌服务或含反模拟器检测的 ARM64 应用可能闪退
 5. **redroid 特权模式**：安卓主容器需要 privileged（redroid 上游官方要求，非特权方案实测无法开机），但仅作用于容器内部，应用本体不申请宿主 root
+6. **穿云投屏设备数量授权**：免费版有设备数量限制，付费仅增加设备数量，不影响功能
 
 ---
 
 ## 问题、建议反馈链接和渠道
 
-1. **交流、反馈和内测体验QQ群**：https://qm.qq.com/q/DF7nsBatFu
+1. **交流、反馈和内测体验 QQ 群**：https://qm.qq.com/q/DF7nsBatFu
 2. **建议、问题反馈问卷**：https://wj.qq.com/s2/28029808/2aab/
 3. **发布者邮箱**：andforlin@foxmail.com
-4. **redroid容器和穿云投屏容器作者的容器专门反馈链接**：见「致谢和导向链接」章节
+4. **redroid 容器和穿云投屏容器作者的容器专门反馈链接**：见「致谢和导向链接」章节
 
 > 提供的反馈链接和渠道除第四条以外都会回复，因为第四条是对容器的问题和建议的专门反馈渠道，与软件本身无关；如果在反馈之后后续处理结果不满意或者想为软件添砖加瓦的，你可以使用源代码进行修改，按照飞牛官方打包教程之后还是按照前三条的反馈链接和渠道进行上传，发布者对上传的代码进行审计之后，会邀请你一起成为贡献者，为软件作出奉献；也感谢对软件本身的问题提出反馈、建议或者提供实质性帮助的人员。
 
@@ -348,7 +464,7 @@ docker volume rm androidemu_data androidemu-webrtc-data
 <img width="4096" height="2926" alt="a61d0506ea65c87e4dd005f21325eda6" src="https://github.com/user-attachments/assets/1ad0e1e8-e03e-4966-a94d-24dff71981ba" />
 
 如果你觉得这个软件很好或者对发布者本身感到满意的，希望能赞赏多多支持一下，让发布者和其他贡献者得以继续维护软件，无论赞赏多少或者是不赞赏，都在此感谢；在支付的时候请在备注上标注赞赏，感谢。
-或者给一个star支持一下项目也行。
+或者给一个 star 支持一下项目也行。
 
 > 注：以上赞赏码仅用于本项目的维护和开发支持，请勿盗用或用于其他用途，感谢理解。
 
@@ -379,7 +495,7 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ### 导向链接
 
-1. redroid容器项目链接：https://github.com/remote-android/redroid-doc
+1. redroid 容器项目链接：https://github.com/remote-android/redroid-doc
 2. 穿云投屏容器项目链接：https://github.com/hqw700/ScrcpyOverWebRTC
 3. 穿云投屏官方文档：https://webrtc-phone.com/docs/
 4. 穿云投屏官方网站：https://webrtc-phone.com/
