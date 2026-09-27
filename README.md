@@ -1,4 +1,4 @@
-# androidemu — 飞牛 fnOS 安卓模拟器 / 云手机
+# androidemu — 安卓模拟器 / 云手机
 
 在飞牛 fnOS 上一键运行 Android 12 虚拟机，通过浏览器远程操控，支持 WebRTC / WebSocket 双投屏模式、ADB 连接、APK 安装、文件管理等。
 
