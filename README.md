@@ -238,6 +238,7 @@ A: 这是穿云投屏的 License 授权提示。新安装的设备目前有20台
 ```bash
 docker ps --filter name=androidemu
 ```
+<img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
 ### Q: WebRTC 投屏连接失败
 
