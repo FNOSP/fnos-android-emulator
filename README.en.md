@@ -13,6 +13,27 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 
 ---
 
+## Table of Contents
+
+- [Features](#features)
+- [Installation Requirements](#installation-requirements)
+- [Installation Methods](#installation-methods)
+- [Access Methods](#access-methods)
+- [Default Account](#default-account)
+- [ADB Connection](#adb-connection)
+- [APK Installation](#apk-installation)
+- [Performance Optimization](#performance-optimization)
+- [Serial Console (Developer Debugging)](#serial-console-developer-debugging)
+- [Container Architecture](#container-architecture)
+- [FAQ](#faq)
+- [Known Limitations](#known-limitations)
+- [Feedback Links & Channels](#feedback-links--channels)
+- [Support the Publisher & Contributors](#support-the-publisher--contributors)
+- [Open Source License & Disclaimer](#open-source-license--disclaimer)
+- [Acknowledgements & Links](#acknowledgements--links)
+
+---
+
 ## Features
 
 - **Android 12 System**: x86_64 architecture, built-in ARM translation layer (libndk_translation), most ARM apps can be installed and run directly
@@ -317,15 +338,19 @@ Key technical conclusions verified during development, for reference for seconda
 2. **Suggestion & Issue Feedback Survey**: https://wj.qq.com/s2/28029808/2aab/
 3. **Publisher Email**: andforlin@foxmail.com
 4. **redroid container and Scrcpy container author's dedicated feedback links**: See "Acknowledgements & Links" section
-(All feedback links and channels except the fourth will be replied, because the fourth is dedicated feedback channel for container issues and suggestions, unrelated to the software itself; if you are unsatisfied with subsequent processing results after feedback or want to contribute to the software, you can modify using source code, follow fnOS official packaging tutorial then upload through the first three feedback links and channels, after publisher audits the uploaded code, you will be invited to become a contributor together; also thanks to those who provide feedback, suggestions or substantial help for software issues)
+
+> All feedback links and channels except the fourth will be replied, because the fourth is dedicated feedback channel for container issues and suggestions, unrelated to the software itself; if you are unsatisfied with subsequent processing results after feedback or want to contribute to the software, you can modify using source code, follow fnOS official packaging tutorial then upload through the first three feedback links and channels, after publisher audits the uploaded code, you will be invited to become a contributor together; also thanks to those who provide feedback, suggestions or substantial help for software issues.
 
 ---
 
 ## Support the Publisher & Contributors
 
 <img width="4096" height="2926" alt="a61d0506ea65c87e4dd005f21325eda6" src="https://github.com/user-attachments/assets/1ad0e1e8-e03e-4966-a94d-24dff71981ba" />
+
 If you find this software helpful or are satisfied with the publisher, hope you can support through appreciation, so that the publisher and other contributors can continue maintaining the software, whether appreciating any amount or not, thank you here; please note "appreciation" in the remark when paying, thanks.
 Or give a star to support the project.
+
+> Note: The above donation codes are only used for the maintenance and development support of this project. Please do not misappropriate or use them for other purposes. Thanks for understanding.
 
 ---
 
