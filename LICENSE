@@ -1,201 +1,73 @@
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
+                                                免责声明
+适用应用：安卓模拟器（国内版）
+本声明全文（含下节「安装与升级须知」）由应用中心自带的「协议许可」弹窗在安装/更新时展示，须勾选「我接受许可协议的条款」方可继续；安装向导中不再重复全文。
+发布时间：2026年9月23日
+生效时间：2026年9月23日
+发布者：键盘敲粥香
 
-   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+安装与升级须知（请连同下文一并阅读）
+一、安装前提与硬件建议
+1. 内核 binder：x86 设备请先在应用中心安装 binder_linux 驱动；ARM 设备多数内核已内置 binder/binderfs，安装脚本会自动检测，不满足时会明确中止并提示。
+2. 硬件建议：CPU ≥ 4核、内存 ≥ 4GB、存储预留 ≥ 4GB（安卓系统镜像约 2GB）。
+3. 首次安装需联网拉取约 2GB 容器镜像，首次启动约 1～5 分钟；网络受限时可先在「Docker → 设置 → 镜像加速器」中配置可用的加速源。
+二、升级须知
+1. 升级会重建安卓容器与云手机画面容器并自动拉起，首次启动约 1～5 分钟。
+2. 安卓数据卷（androidemu-data）与穿云投屏数据卷（androidemu-webrtc-data）在升级时保留不丢；卸载时默认同样保留，只有卸载向导中明确选择「删除数据」才会删除。
+3. 升级前建议先在应用面板确认两个容器处于运行状态，并保留重要数据的备份。
+三、使用与安全要点
+1. 云手机画面后台默认账号 admin、默认密码 admin123，首次登录后请立即修改，请勿在公网直接暴露画面服务端口。
+2. 访问方式（局域网直连 / 公网端口映射 / 内网穿透）默认自动检测，可随时在应用面板一键切换，不影响安卓数据。
+3. 卸载：安卓数据卷与容器镜像默认都保留（卸载向导中可显式选择删除）。
 
-   1. Definitions.
+一、声明主体与适用范围
+1. 本免责声明由本应用发布者「键盘敲粥香」（以下简称「发布者」）发布，适用于本发布者所发布的「安卓模拟器（国内版）」（基于 Redroid 容器化安卓与穿云投屏云手机画面服务集成，以下简称「本应用」）。
+2. 本应用为非官方第三方应用，由发布者基于上游开源项目 Redroid（Remote Android in Docker）与穿云投屏（ScrcpyOverWebRTC）进行集成、打包与分发。
+3. 本声明所称「开发者」，指本应用所集成上游组件（Redroid、穿云投屏等）的原作者；「发布者」，指对本应用进行集成、打包与分发的「键盘敲粥香」；「使用者」，指下载并安装本应用的个人或组织。开发者、发布者与使用者三方权责相互独立、各司其职，本声明所称责任约定不改变任何一方依法应承担的责任。
 
-      "License" shall mean the terms and conditions for use, reproduction,
-      and distribution as defined by Sections 1 through 9 of this document.
+二、应用性质与担保
+1. 本应用按「现状」（ASIS）提供，发布者不对本应用的适用性、可靠性、稳定性、完整性、安全性作任何明示或默示的担保。
+2. 本应用依赖 Docker 容器环境、内核 binder 支持（binder_linux 驱动或内核内置 binderfs；x86 需装驱动，ARM 多数内置，安装脚本自动检测）、容器镜像及宿主机网络等外部条件运行，上述外部条件的可用性不属于发布者控制范围；因外部环境、网络、硬件、上游镜像源调整等因素导致的功能异常、不可用或数据异常，发布者不承担责任。
+3. 本应用可能随上游组件更新、系统环境变化而调整，发布者将尽力保持兼容与可用，但不承诺任何特定功能或界面长期不变。
+4. 性能与流畅度声明：本应用的实际帧率、清晰度与流畅度受使用者设备硬件（CPU/GPU/内存）与网络条件（局域网/公网、上行带宽）影响，不同环境表现不同；发布者不对特定帧率、分辨率或流畅度作出保证。
 
-      "Licensor" shall mean the copyright owner or entity authorized by
-      the copyright owner that is granting the License.
+三、使用风险与责任
+1. 使用者在安装与使用本应用前，应仔细阅读本免责声明及《应用介绍》；一旦下载、安装或使用本应用，即视为已阅读、理解并同意本声明全部内容。
+2. 使用者应自行评估使用本应用的风险，并承担因使用本应用（包括但不限于容器数据、模拟器内数据、网络与安全配置、镜像拉取）所导致的全部后果与损失，包括但不限于数据丢失、功能异常、设备或系统损坏。
+3. 使用者不得利用本应用从事任何违反国家法律法规、平台规则或侵犯第三方合法权益的活动；由此产生的全部法律责任由使用者自行承担，与发布者无关。
+4. 本应用涉及的镜像拉取、加速源使用等网络行为，由使用者自主发起；使用者应遵守相关服务条款及当地法律法规。
+5. 如使用者将本应用用于生产、商用或其他重要场景，建议先行充分测试并做好数据备份，发布者不对因未备份或未测试造成的损失承担责任。
+6. 安全边界说明：本应用包含两个 Docker 容器：redroid 安卓容器必须以 privileged 特权模式运行（上游官方技术要求），穿云投屏 webrtc 服务容器已非特权运行；redroid 容器与宿主机共享内核，隔离强度低于硬件级虚拟化；使用者应仅在模拟器内安装可信来源的应用，不存放重要个人资料与敏感信息，并自行评估与承担容器环境下的安全风险。 本应用不申请宿主 root：应用以专用账号（run-as=package，非 root）运行，无任何宿主 root 常驻进程；容器内 root ≠ 特权容器 ≠ 宿主 root，完整权限口径见包内《权限说明》。
+7. 未成年人特别提示：如您未满 18 周岁，请在法定监护人指导下阅读本声明并决定是否使用本应用；未成年人、限制民事行为能力人因使用本应用产生的任何法律后果，依法由其法定监护人承担。
 
-      "Legal Entity" shall mean the union of the acting entity and all
-      other entities that control, are controlled by, or are under common
-      control with that entity. For the purposes of this definition,
-      "control" means (i) the power, direct or indirect, to cause the
-      direction or management of such entity, whether by contract or
-      otherwise, or (ii) ownership of fifty percent (50%) or more of the
-      outstanding shares, or (iii) beneficial ownership of such entity.
+四、知识产权与授权
+1. 本应用所集成的上游组件（Redroid、穿云投屏等）及其相关软件、标识、商标的著作权、商标权及其他知识产权，均归其原作者（即上述「开发者」）所有，本应用集成使用不改变相关权利的归属。
+2. 未经相关权利人的明确授权，任何个人或组织不得将本应用、其集成组件及其标识用于商业再分发、二次打包、仿冒或任何未获授权的用途；发布者不对使用者超出授权范围的使用行为承担责任。
+4. 本应用集成的上游组件均为开源项目：Redroid（容器化安卓）组织内模块遵循 GPL-2.0 等开源许可证，「穿云投屏（ScrcpyOverWebRTC）」及所依赖的 scrcpy 遵循 Apache 2.0 等开源许可证。本应用仅运行时从公开仓库拉取并使用上游镜像，不修改、不捆绑、不分发其源码与二进制；使用者如自行部署、修改或再分发相关组件，应自行遵守对应许可证要求。
+5. 关于「开发者」与「发布者」的区别说明：开发者为上游组件的原创作者，负责相关组件本身的技术实现与维护；发布者负责将相关组件集成为本应用并面向使用者分发，不替代开发者对组件本身的任何承诺。使用者如对组件本身存在疑问，可参照对应开源项目的官方文档与许可。
+6. 权利人与用户反馈：如您认为本应用或其集成组件涉嫌侵犯您的合法权益（包括但不限于著作权、商标权、名称权），或对本应用有任何疑问、建议或需反馈使用问题，可通过本应用详情页展示的发布者、开发者信息联系发布者；发布者将在核实相关情况后依法采取合理措施（包括但不限于删除、屏蔽、下线相关内容）。
 
-      "You" (or "Your") shall mean an individual or Legal Entity
-      exercising permissions granted by this License.
+五、其他约定
+1. 法律适用与争议解决：本声明的订立、效力、解释与履行均适用中华人民共和国法律。因本声明或本应用使用引发的争议，双方应友好协商解决；协商不成的，任何一方均可向发布者所在地有管辖权的人民法院提起诉讼。
+2. 不可抗力免责：因自然灾害、政策变动、法律法规修订、网络攻击、运营商故障、上游镜像或服务商调整等不可抗力或非发布者可控因素，导致本应用无法访问、功能异常或数据异常的，发布者不承担违约责任或赔偿责任。
+3. 隐私说明：本应用本身不收集、存储使用者的个人信息；使用过程中涉及的镜像拉取、云手机画面、网络连接等行为可能经由第三方服务（容器镜像仓库、穿云投屏相关服务等）传输必要数据，相关数据行为遵循相应第三方服务的隐私政策，使用者应自行知悉并评估。
+4. 声明更新与生效：本声明随应用及功能更新适时修订，修订后以本应用或发布渠道公布的最新版本为准；使用者在声明更新后继续使用本应用，视为接受更新后的条款。本声明自公布之日起生效。
 
-      "Source" form shall mean the preferred form for making modifications,
-      including but not limited to software source code, documentation
-      source, and configuration files.
+六、用户交流
+1. 用户交流渠道：使用者可加入用户交流 QQ 群 786423181 反馈使用问题与建议；群内交流内容不构成发布者的正式承诺或担保。
 
-      "Object" form shall mean any form resulting from mechanical
-      transformation or translation of a Source form, including but
-      not limited to compiled object code, generated documentation,
-      and conversions to other media types.
+权限与账号安全说明
 
-      "Work" shall mean the work of authorship, whether in Source or
-      Object form, made available under the License, as indicated by a
-      copyright notice that is included in or attached to the work
-      (an example is provided in the Appendix below).
+一、账号安全（重要）：
+「云手机画面」管理后台默认账号 admin、默认密码 admin123。为保障您的数据与账号安全，首次登录后请务必立即修改默认密码；请勿在公网直接暴露画面服务端口。因未修改默认口令导致的任何损失，使用者自行承担。
 
-      "Derivative Works" shall mean any work, whether in Source or Object
-      form, that is based on (or derived from) the Work and for which the
-      editorial revisions, annotations, elaborations, or other modifications
-      represent, as a whole, an original work of authorship. For the purposes
-      of this License, Derivative Works shall not include works that remain
-      separable from, or merely link (or bind by name) to the interfaces of,
-      the Work and Derivative Works thereof.
+二、权限说明（本应用权限模型）：
+1. 本应用没有任何进程以宿主 root 常驻运行：应用以专用账号（run-as=package，非 root）运行，容器编排由 fnOS Docker 以常规 compose 方式执行；
+2. 全应用仅一个容器（redroid 安卓主容器）需要 privileged 特权模式，系上游技术硬性要求（容器内 Android 初始化需要访问/挂载内核 binder 设备等），其必要性说明、替代方案实测记录详见包内《权限说明》与 compose 注释；
+3. 其余组件（webrtc 云手机画面服务）与全部应用脚本均为最小权限运行；所谓"容器内 root"仅存在于该普通/特权容器的命名空间内，不等于宿主 root；
+4. 容器内部以 root 运行 ≠ 特权容器 ≠ 宿主 root，三者请勿混淆；如需进一步说明，见包内《权限说明》。
+注：完整版本说明、上游组件出处与上游开源许可见本《LICENSE》与包内《权限说明》；本文件即应用中心「协议许可」弹窗所展示的全文。
 
-      "Contribution" shall mean any work of authorship, including
-      the original version of the Work and any modifications or additions
-      to that Work or Derivative Works thereof, that is intentionally
-      submitted to Licensor for inclusion in the Work by the copyright owner
-      or by an individual or Legal Entity authorized to submit on behalf of
-      the copyright owner. For the purposes of this definition, "submitted"
-      means any form of electronic, verbal, or written communication sent
-      to the Licensor or its representatives, including but not limited to
-      communication on electronic mailing lists, source code control systems,
-      and issue tracking systems that are managed by, or on behalf of, the
-      Licensor for the purpose of discussing and improving the Work, but
-      excluding communication that is conspicuously marked or otherwise
-      designated in writing by the copyright owner as "Not a Contribution."
-
-      "Contributor" shall mean Licensor and any individual or Legal Entity
-      on behalf of whom a Contribution has been received by Licensor and
-      subsequently incorporated within the Work.
-
-   2. Grant of Copyright License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      copyright license to reproduce, prepare Derivative Works of,
-      publicly display, publicly perform, sublicense, and distribute the
-      Work and such Derivative Works in Source or Object form.
-
-   3. Grant of Patent License. Subject to the terms and conditions of
-      this License, each Contributor hereby grants to You a perpetual,
-      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
-      (except as stated in this section) patent license to make, have made,
-      use, offer to sell, sell, import, and otherwise transfer the Work,
-      where such license applies only to those patent claims licensable
-      by such Contributor that are necessarily infringed by their
-      Contribution(s) alone or by combination of their Contribution(s)
-      with the Work to which such Contribution(s) was submitted. If You
-      institute patent litigation against any entity (including a
-      cross-claim or counterclaim in a lawsuit) alleging that the Work
-      or a Contribution incorporated within the Work constitutes direct
-      or contributory patent infringement, then any patent licenses
-      granted to You under this License for that Work shall terminate
-      as of the date such litigation is filed.
-
-   4. Redistribution. You may reproduce and distribute copies of the
-      Work or Derivative Works thereof in any medium, with or without
-      modifications, and in Source or Object form, provided that You
-      meet the following conditions:
-
-      (a) You must give any other recipients of the Work or
-          Derivative Works a copy of this License; and
-
-      (b) You must cause any modified files to carry prominent notices
-          stating that You changed the files; and
-
-      (c) You must retain, in the Source form of any Derivative Works
-          that You distribute, all copyright, patent, trademark, and
-          attribution notices from the Source form of the Work,
-          excluding those notices that do not pertain to any part of
-          the Derivative Works; and
-
-      (d) If the Work includes a "NOTICE" text file as part of its
-          distribution, then any Derivative Works that You distribute must
-          include a readable copy of the attribution notices contained
-          within such NOTICE file, excluding those notices that do not
-          pertain to any part of the Derivative Works, in at least one
-          of the following places: within a NOTICE text file distributed
-          as part of the Derivative Works; within the Source form or
-          documentation, if provided along with the Derivative Works; or,
-          within a display generated by the Derivative Works, if and
-          wherever such third-party notices normally appear. The contents
-          of the NOTICE file are for informational purposes only and
-          do not modify the License. You may add Your own attribution
-          notices within Derivative Works that You distribute, alongside
-          or as an addendum to the NOTICE text from the Work, provided
-          that such additional attribution notices cannot be construed
-          as modifying the License.
-
-      You may add Your own copyright statement to Your modifications and
-      may provide additional or different license terms and conditions
-      for use, reproduction, or distribution of Your modifications, or
-      for any such Derivative Works as a whole, provided Your use,
-      reproduction, and distribution of the Work otherwise complies with
-      the conditions stated in this License.
-
-   5. Submission of Contributions. Unless You explicitly state otherwise,
-      any Contribution intentionally submitted for inclusion in the Work
-      by You to the Licensor shall be under the terms and conditions of
-      this License, without any additional terms or conditions.
-      Notwithstanding the above, nothing herein shall supersede or modify
-      the terms of any separate license agreement you may have executed
-      with Licensor regarding such Contributions.
-
-   6. Trademarks. This License does not grant permission to use the trade
-      names, trademarks, service marks, or product names of the Licensor,
-      except as required for reasonable and customary use in describing the
-      origin of the Work and reproducing the content of the NOTICE file.
-
-   7. Disclaimer of Warranty. Unless required by applicable law or
-      agreed to in writing, Licensor provides the Work (and each
-      Contributor provides its Contributions) on an "AS IS" BASIS,
-      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-      implied, including, without limitation, any warranties or conditions
-      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
-      PARTICULAR PURPOSE. You are solely responsible for determining the
-      appropriateness of using or redistributing the Work and assume any
-      risks associated with Your exercise of permissions under this License.
-
-   8. Limitation of Liability. In no event and under no legal theory,
-      whether in tort (including negligence), contract, or otherwise,
-      unless required by applicable law (such as deliberate and grossly
-      negligent acts) or agreed to in writing, shall any Contributor be
-      liable to You for damages, including any direct, indirect, special,
-      incidental, or consequential damages of any character arising as a
-      result of this License or out of the use or inability to use the
-      Work (including but not limited to damages for loss of goodwill,
-      work stoppage, computer failure or malfunction, or any and all
-      other commercial damages or losses), even if such Contributor
-      has been advised of the possibility of such damages.
-
-   9. Accepting Warranty or Additional Liability. While redistributing
-      the Work or Derivative Works thereof, You may choose to offer,
-      and charge a fee for, acceptance of support, warranty, indemnity,
-      or other liability obligations and/or rights consistent with this
-      License. However, in accepting such obligations, You may act only
-      on Your own behalf and on Your sole responsibility, not on behalf
-      of any other Contributor, and only if You agree to indemnify,
-      defend, and hold each Contributor harmless for any liability
-      incurred by, or claims asserted against, such Contributor by reason
-      of your accepting any such warranty or additional liability.
-
-   END OF TERMS AND CONDITIONS
-
-   APPENDIX: How to apply the Apache License to your work.
-
-      To apply the Apache License to your work, attach the following
-      boilerplate notice, with the fields enclosed by brackets "[]"
-      replaced with your own identifying information. (Don't include
-      the brackets!)  The text should be enclosed in the appropriate
-      comment syntax for the file format. We also recommend that a
-      file or class name and description of purpose be included on the
-      same "printed page" as the copyright notice for easier
-      identification within third-party archives.
-
-   Copyright [yyyy] [name of copyright owner]
-
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
-
-       http://www.apache.org/licenses/LICENSE-2.0
-
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+附：常见使用提示（FAQ 精选）
+1. 账号安全：云手机画面后台默认账号 admin、默认密码 admin123，首次登录后务必立即修改默认密码；请勿在公网直接暴露画面服务端口。
+2. 兼容提示:个别ARM应用在本x86容器翻评层下可能启动即闪退，属翻译层能力边界。
+3. 升级与数据:请在应用中心内完成升级；卸载选择「保留数据」则重装数据仍在。
