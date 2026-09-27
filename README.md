@@ -382,10 +382,10 @@ docker volume rm androidemu_data androidemu-webrtc-data
 ## 致谢和导向链接
 
 导向链接：
-1.redroid容器项目链接：https://github.com/remote-android/redroid-doc
-2.穿云投屏容器项目链接：https://github.com/hqw700/ScrcpyOverWebRTC
-3.穿云投屏官方文档：https://webrtc-phone.com/docs/
-4.穿云投屏官方网站：https://webrtc-phone.com/
+1. redroid容器项目链接：https://github.com/remote-android/redroid-doc
+2. 穿云投屏容器项目链接：https://github.com/hqw700/ScrcpyOverWebRTC
+3. 穿云投屏官方文档：https://webrtc-phone.com/docs/
+4. 穿云投屏官方网站：https://webrtc-phone.com/
 致谢：
 - [redroid 项目] — Android in Docker
 - [穿云投屏 scrcpy-over-webrtc] — WebRTC 画面服务
