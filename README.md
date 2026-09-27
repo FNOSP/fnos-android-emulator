@@ -38,7 +38,7 @@
 | 存储 | 4 GB 可用 | 8 GB+（含镜像约 2GB） |
 | 网络 | 局域网 | — |
 
-> **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染。
+> **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染；在下载应用之前必须安装binder_linux驱动（应用中心里面有，直接搜索就可以），否则无法使用或者被拒绝安装。
 > **ARM 设备**：自动使用软件渲染（gpu_mode=guest），无需额外驱动。
 
 ---
@@ -352,7 +352,7 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 本项目为非官方第三方应用，按"现状"提供，使用风险自负。
 
-- redroid：[Apache 2.0](https://github.com/remote-android/redroid-doc)
+- redroid：[Apache 2.0](http://www.apache.org/licenses)
 - scrcpy-over-webrtc（穿云投屏）：见上游项目
 - 本项目打包脚本和配置：MIT
 
