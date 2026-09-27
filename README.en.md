@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.6.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.6.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -16,7 +16,6 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 ## Table of Contents
 
 - [Features](#features)
-- [Changelog](#changelog)
 - [Installation Requirements](#installation-requirements)
 - [Installation Methods](#installation-methods)
 - [Access Methods](#access-methods)
@@ -58,41 +57,6 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 
 ---
 
-## Changelog
-
-### v3.6.6 (2026-09-27)
-
-**Fixed:**
-- Fixed "Unable to update - script execution error with unknown reason" caused by `uninstall_init` script exception during upgrade
-  - Rewrote uninstall script with more robust upgrade guard (supports TRIM_APP_STATUS / TRIM_OLD_APPVER / TRIM_TEMP_UPGRADE_FOLDER / TRIM_APP_OP environment variables)
-  - Added `set +e` to ensure no command failure causes abnormal script exit
-  - All output redirected to log file, keeping stdout clean
-  - Added error fallback for all commands
-- Cleaned up dead code after `exit 0` in `upgrade_init` (androidemu_release_drm function)
-
-### v3.6.5 (2026-09-27)
-
-**Fixed:**
-- **gateway.py privilege downgrade**: App background processes changed from root to `docker-androidemu` user, resolving high-risk audit item
-  - Added `_drop_privileges()` function, auto-downgrade when uid=0 (os.setgroups → os.setgid → os.setuid)
-  - gw_socket.sh bash fallback startup also added privilege downgrade
-- **audio_fix.py privilege downgrade**: Audio watchdog also runs as `docker-androidemu` user, consistent with gateway.py, resolving repeated startup issue caused by `is_mine()` not detecting root processes
-- **CRLF line endings unified to LF**: All text files use Unix line endings (except SHA256.txt), avoiding `$'\r': command not found` errors on Linux
-- **Multi-instance zombie process fix**: fix_keystore.sh and fix_storage_perm.sh clean up old processes on startup, ensuring only one instance
-  - Before fix: fix_keystore had 8 zombie processes running since Sep 25-26
-  - After fix: only 1 process
-
-### v3.6.0 ~ v3.6.4
-
-- Blocked Scrcpy frontend print shortcut conflict (clicking terminal no longer triggers print dialog)
-- Auto-cleanup of temporary data on installation/update interruption
-- Auto-recovery after NAS reboot
-- Optimized auto Android container detection mechanism
-- Android container defaults to Simplified Chinese + China timezone
-- Bluetooth and serial console disabled by default
-- Performance optimization: process priority boost, background service streamlining, CPU dynamic frequency scaling
-
----
 
 ## Installation Requirements
 
@@ -346,6 +310,7 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 - Built-in Scrcpy screen service uses upstream third-party authorization: free version can use all basic features (screen casting, ADB debugging etc.), only "addable device count" is limited
 - Paid only increases device count limit, doesn't affect any functionality
 - Fees collected by upstream authorization service provider, unrelated to fnOS official
+<img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
 ---
 
@@ -357,7 +322,6 @@ A: This is Scrcpy License authorization prompt. Newly installed devices currentl
 ```bash
 docker ps --filter name=androidemu
 ```
-<img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
 ### Q: "Unable to update - script execution error with unknown reason" during upgrade
 

@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.6.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.6.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -16,7 +16,6 @@
 ## 目录
 
 - [功能特性](#功能特性)
-- [更新日志](#更新日志)
 - [安装要求](#安装要求)
 - [安装方法](#安装方法)
 - [访问方式](#访问方式)
@@ -58,41 +57,6 @@
 
 ---
 
-## 更新日志
-
-### v3.6.6（2026-09-27）
-
-**修复：**
-- 修复升级时 `uninstall_init` 脚本执行异常导致的「无法更新 - 执行脚本出错且原因未知」错误
-  - 重写卸载脚本，增加更健壮的升级守卫（支持 TRIM_APP_STATUS / TRIM_OLD_APPVER / TRIM_TEMP_UPGRADE_FOLDER / TRIM_APP_OP 四种环境变量判断）
-  - 添加 `set +e` 确保任何命令失败都不会导致脚本异常退出
-  - 所有输出重定向到日志文件，stdout 保持干净
-  - 所有命令增加错误兜底
-- 清理 `upgrade_init` 中 `exit 0` 后的死代码（androidemu_release_drm 函数）
-
-### v3.6.5（2026-09-27）
-
-**修复：**
-- **gateway.py 降权**：应用本体后台进程从 root 降权为 `docker-androidemu` 用户运行，解决审核高风险项
-  - 添加 `_drop_privileges()` 函数，uid=0 时自动降权（os.setgroups → os.setgid → os.setuid）
-  - gw_socket.sh 的 bash 兜底启动也添加降权
-- **audio_fix.py 降权**：音频守护也以 `docker-androidemu` 用户运行，与 gateway.py 保持一致，解决 `is_mine()` 检查不到导致反复拉起的问题
-- **CRLF 行尾统一改为 LF**：所有文本文件统一使用 Unix 行尾（除 SHA256.txt），避免 Linux 下 `$'\r': command not found` 错误
-- **多实例僵尸进程修复**：fix_keystore.sh 和 fix_storage_perm.sh 启动时先清理旧进程，确保只保留一个实例
-  - 修复前：fix_keystore 有 8 个僵尸进程从 9 月 25-26 日运行至今
-  - 修复后：仅 1 个进程
-
-### v3.6.0 ~ v3.6.4
-
-- 屏蔽穿云投屏前端打印快捷键冲突（点击终端不再弹出打印页面）
-- 安装/更新中断自动清理临时数据
-- NAS 重启后应用自动恢复
-- 自动检测安卓容器机制优化
-- 安卓容器默认简体中文 + 中国时区
-- 默认关闭蓝牙和串口控制台
-- 性能优化：进程优先级提升、后台服务精简、CPU 动态调频
-
----
 
 ## 安装要求
 
@@ -159,6 +123,8 @@ https://<NAS_IP>:8443
 - ⚠️ 帧率和延迟受上行带宽影响
 
 > 原因：飞牛反向代理只透传 TCP（HTTP/HTTPS/WebSocket），不透传 UDP。WebRTC 媒体流走 UDP，因此自动降级为 WebSocket 投屏。
+>
+> v3.6.7+ 增强了外网自动适配：自动检测并切换 WebSocket 投屏模式，若切换失败则提供 MJPEG 降级画面，确保外网访问始终可用。
 
 ### 飞牛 APP
 
@@ -346,6 +312,7 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 - 内置的穿云投屏画面服务采用上游第三方授权：免费版即可使用云手机画面、ADB 调试等全部基础功能，仅「可添加设备数量」受限
 - 付费仅增加设备数量上限，不影响任何功能
 - 费用由上游授权服务方收取，与飞牛官方无关
+<img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
 ---
 
@@ -357,7 +324,6 @@ A: 这是穿云投屏的 License 授权提示。新安装的设备目前有 20 �
 ```bash
 docker ps --filter name=androidemu
 ```
-<img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
 ### Q: 升级时提示「无法更新 - 执行脚本出错且原因未知」
 
@@ -379,6 +345,17 @@ A: 按以下步骤排查：
 3. 确认 PUBLIC_IP 是局域网 IP 而非 127.0.0.1：`docker exec androidemu-webrtc env | grep PUBLIC_IP`
 4. 确认 ICE_SERVERS 中包含正确的局域网 IP：`docker exec androidemu-webrtc env | grep ICE_SERVERS`
 5. 尝试点击「改用 WebSocket 投屏」
+
+### Q: WebSocket（WS）投屏显示连接失败
+
+A: 使用WebSocket投屏（局域网或外网环境）时，若出现「连接失败」页面，请耐心等待：
+- **2分钟内**：系统会自动重试并连接，最终显示安卓容器主页，无需任何操作
+- **超过2分钟仍显示连接失败**：请按以下步骤排查：
+  1. 确认安卓容器已完全启动（首次启动约需1-2分钟），可在飞牛Docker中查看容器状态
+  2. 刷新页面重新进入
+  3. 局域网用户可尝试直接访问 `https://<NAS_IP>:8443`
+  4. 外网用户可使用页面右上角提示中的MJPEG降级画面查看
+  5. 如仍无法解决，请查看容器日志或通过反馈渠道联系我们
 
 ### Q: 容器反复重启
 
