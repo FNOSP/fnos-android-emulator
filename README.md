@@ -203,25 +203,25 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 
 ```
 ┌─────────────────────────────────────────────┐
-│  飞牛 fnOS 主机                              │
+│  飞牛 fnOS 主机                              │ 
 │                                             │
-│  ┌──────────────────┐  ┌─────────────────┐ │
-│  │  androidemu-     │  │  androidemu-    │ │
-│  │  android         │  │  webrtc         │ │
-│  │  (redroid)       │  │  (scrcpy+TURN)  │ │
-│  │                  │  │                 │ │
-│  │  Android 12      │  │  信令服务 :8443 │ │
-│  │  ADB :5556       │  │  TURN  :3478   │ │
-│  │  bridge 网络     │  │  host 网络      │ │
-│  │  privileged      │  │  SYS_NICE      │ │
-│  └──────────────────┘  └─────────────────┘ │
+│  ┌──────────────────┐  ┌─────────────────┐  │
+│  │  androidemu-     │  │  androidemu-    │  │
+│  │  android         │  │  webrtc         │  │
+│  │  (redroid)       │  │  (scrcpy+TURN)  │  │
+│  │                  │  │                 │  │
+│  │  Android 12      │  │  信令服务 :8443  │  │
+│  │  ADB :5556       │  │  TURN  :3478    │  │
+│  │  bridge 网络     │  │  host 网络       │  │
+│  │  privileged      │  │  SYS_NICE       │  │
+│  └──────────────────┘  └─────────────────┘  │
 │          │                       │          │
-│          └───── scrcpy ─────────┘          │
+│          └───── scrcpy ─────────┘           │
 │                  (ADB over TCP)             │
 └─────────────────────────────────────────────┘
          │
          ▼
-   飞牛统一网关 (:65535)
+   飞牛统一网关
          │
          ▼
       浏览器
@@ -282,7 +282,13 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 ## 版本历史与踩坑记录
 
-### v3.5.x — 稳定性与性能优化
+### v3.6.x — 容器启动稳定性修复
+
+- **v3.6.1**：加回 console=0（确认安全，之前一直没问题）；精简后台服务（NFC/打印/备份/蓝牙，共6个）；nice=-10 保持；use_memfd=1 永久移除
+- **v3.6.0**：修复安卓容器无法启动 — 根因是 androidboot.use_memfd=1 导致 LocationManagerService 崩溃（"Unable to find a direct boot aware fused location provider"），init 杀掉 zygote 及所有系统服务，内存从600-700MB降到400MB。移除 use_memfd=1 和 console=0 后恢复
+- **踩坑教训**：com.android.location.fused 绝对不能禁用（LocationManagerService 依赖项，禁用会导致 system_server 崩溃）；use_memfd=1 在 redroid 12 上不安全
+
+### v3.5.x — 非 root 改造与 ICE 修复
 
 - **v3.5.9**：性能优化（webrtc/turn 进程 nice=-10、禁用后台服务、CPU 动态调频最低40%）；动画和壁纸保持系统默认
 - **v3.5.8**：首次尝试性能优化（禁用动画+黑色壁纸），后因用户反馈回退动画和壁纸
@@ -297,9 +303,16 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 - 修复 WS 投屏后自动刷新回首页的 bug（RUNTIME_SHIM 劫持了所有 WebSocket，断开时无条件 location.reload()）
 - 修复 watchdog 误判 audio:false 为"缺失默认键"并反复重建容器的问题（ensure_once 端口在听就直接 return）
-- 修复音频崩溃问题（redroid 只有 Codec2 版 opus 编码器，scrcpy 只识别 OMX 版）
 - 屏蔽终端按钮触发打印页面（RUNTIME_SHIM 屏蔽 window.print）
 - 外网访问自动切换 WebSocket 投屏 + 提示条
+
+### v3.3.x — 容器优化与稳定性
+
+- 简体中文 + 中国时区默认（zh_CN / Asia/Shanghai）
+- 串口控制台默认关闭（androidboot.console=0，减少性能损耗）
+- 禁用蓝牙（pm disable 彻底禁用，svc disable 会被系统自动重启）
+- 自定义 entrypoint 修复 TURN 监听地址（listening-ip=0.0.0.0，原镜像只监听 Docker 网桥 172.x）
+- 禁用音频（redroid 只有 Codec2 版 Opus 编码器，scrcpy 只识别 OMX 版，开启会 createEncoder 失败并断流）
 
 ### v3.0.x — Python 重写网关
 
@@ -313,11 +326,8 @@ docker volume rm androidemu_data androidemu-webrtc-data
 
 - X86 / ARM 双架构合一安装包（androidemu_all_x.x.x.fpk）
 - 安装时自动检测架构和 GPU 能力（tune_compose.sh）
-- 简体中文 + 中国时区默认（zh_CN / Asia/Shanghai）
-- 禁用蓝牙（pm disable，svc disable 会被系统自动重启）
-- 串口控制台默认关闭（androidboot.console=0）
-- 自定义 entrypoint 修复 TURN 监听地址（listening-ip=0.0.0.0，原镜像只监听 Docker 网桥）
-- ADB 端口改用 socat 转发（fnOS Docker 无宿主回环能力）
+- ADB 端口改用 socat 转发（fnOS Docker 无宿主回环能力，bridge 容器无法访问宿主局域网 IP）
+- webrtc 容器改用 host 网络（确保云手机 Agent 能直连宿主信令/TURN 端口）
 
 ### v1.0.x — 初始版本
 
