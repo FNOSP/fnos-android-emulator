@@ -322,7 +322,6 @@ docker volume rm androidemu_data androidemu-webrtc-data
 ### v1.0.x — 初始版本
 
 - 初始版本：redroid + scrcpy-over-webrtc 双容器
-- 飞牛应用中心上架
 - 镜像加速源（DaoCloud 免注册 + Docker Hub 回退）
 - 经历 Docker Hub 连接超时、镜像拉取失败等问题
 
