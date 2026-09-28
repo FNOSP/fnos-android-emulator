@@ -154,6 +154,102 @@ Scrcpy screen service default login account:
 
 ---
 
+## Quick Start (scrcpy-over-webrtc User Guide)
+
+### 1. Login
+
+- Access via fnOS App Center "Open" button — auto-login, no credentials needed
+- Direct access at `http://<NAS_IP>:8443` uses default account `admin` / `admin123`
+- After login, change the password in「Settings」
+
+### 2. Main Interface
+
+Left sidebar menu:
+
+| Menu | Function |
+|------|----------|
+| Cloud VM | View and manage connected Android devices, click to open screen |
+| Dashboard | Device status overview (online count, CPU, memory, etc.) |
+| Files | File center, batch install/transfer APKs and files |
+| Deploy | Device deployment configuration |
+| Terminal | Android shell command line (ADB debugging) |
+| Peripherals | Peripheral management |
+| User Management | Manage scrcpy-over-webrtc login users |
+| Device Ops | Device grouping and tag management |
+| Share | Generate device share links |
+| Audit | Operation audit logs |
+| Settings | System settings (change password, ports, etc.) |
+
+### 3. View Devices
+
+- Click「Cloud VM」in the sidebar — connected Android devices appear in the list
+- Device status: **Online** (green) / **Offline** (gray)
+- After normal installation, the device auto-registers and shows online (default ID: `androidemu`)
+- If showing "0 devices online", see the FAQ troubleshooting section
+
+### 4. Screen Casting
+
+1. In「Cloud VM」, click an online device to open the screen
+2. First connection uses **WebRTC** mode (best quality, low latency)
+3. If WebRTC fails, use the mode switch button at the top to switch to **WebSocket (WS)** mode
+4. Screen controls:
+   - **Click**: Left mouse click = Android touch
+   - **Swipe**: Hold left button and drag = Android swipe gesture
+   - **Zoom**: Mouse wheel = pinch-to-zoom
+   - **Back**: Side toolbar back button, or press Esc
+   - **Home**: Side toolbar home button, or press Home
+   - **Recent apps**: Side toolbar recent button
+   - **Keyboard input**: Type directly on keyboard — input goes to the focused field
+   - **Volume**: Side toolbar volume +/- buttons
+
+### 5. Install APK
+
+**Method 1: Batch install (recommended)**
+1. Click「Files」→ select「Batch Install/Transfer」tab
+2. Drag APK files to the upload area, or click to upload
+3. Select target devices (check the devices to install on)
+4. Task type:「Silent install APK」
+5. Click「Dispatch batch task」and wait for completion
+
+**Method 2: Single device install**
+1. Open the device screen
+2. Find the「Install APK」button in the side toolbar
+3. Select a local APK file to upload and install
+
+> Uploaded APK files are not auto-deleted after installation. Manually click「Remove」on the Files page, or see the FAQ for cleanup methods.
+
+### 6. Terminal (ADB Debugging)
+
+1. Click「Terminal」in the sidebar
+2. Select target device
+3. Enter Android shell commands directly:
+   ```
+   pm list packages          # List installed apps
+   pm uninstall <package>    # Uninstall an app
+   getprop sys.boot_completed # Check if Android finished booting
+   ```
+4. You can also connect externally with `adb connect <NAS_IP>:5556`
+
+### 7. File Management
+
+- 「Files」→「File Center」to browse and manage files on the Android device
+- Supports upload to device, download from device, and delete files
+- 「Batch Install/Transfer」for sending APKs or files to multiple devices simultaneously
+
+### 8. Quick Reference
+
+| Action | Method |
+|--------|--------|
+| Screenshot | Side toolbar screenshot button |
+| Rotate screen | Side toolbar rotate button |
+| Lock/Wake screen | Single-click power button in side toolbar |
+| Power off/Reboot | Long-press power button in side toolbar → select from Android power menu |
+| Switch cast mode | Top of screen: WebRTC/WS toggle |
+| Change password | Sidebar「Settings」→ Change password |
+| Share device | Sidebar「Share」→ Generate share link |
+
+---
+
 ## ADB Connection
 
 ```bash
@@ -465,6 +561,23 @@ A: This is Scrcpy frontend shortcut conflict bug. Fixed via RUNTIME_SHIM blockin
 ### Q: Audit log loading failed
 
 A: Audit log function depends on Scrcpy backend `/api/audit` endpoint, some versions may not support. This is upstream image feature, doesn't affect core casting function.
+
+### Q: How to delete uploaded APK files in scrcpy-over-webrtc? "Remove" button doesn't work
+
+A: The "Remove" button only removes the file from the current install task — it does **not** delete the file from the cloud file center. Files are stored in the webrtc container at `/app/data/downloads/`. Delete them from the container:
+
+```bash
+# 1. List uploaded files
+docker exec androidemu-webrtc ls -la /app/data/downloads/
+
+# 2. Delete all APKs (or specify a filename to delete one)
+docker exec -u 0 androidemu-webrtc rm -f /app/data/downloads/*.apk
+
+# 3. Clear file metadata (otherwise the dropdown still shows filenames)
+docker exec androidemu-webrtc sh -c 'echo "{}" > /app/data/files_meta.json'
+```
+
+Refresh the page after deletion, and the "Select existing file from cloud" dropdown will be empty.
 
 ### Q: How to uninstall
 
