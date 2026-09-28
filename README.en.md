@@ -381,6 +381,75 @@ A: Troubleshoot step by step:
 3. If only one container is laggy, find that container in Docker and click "Restart"
 4. If none of the above works, please capture a screenshot or screen recording of the lag, and export the Docker container logs as a text file, then submit via any of the feedback channels below
 
+### Q: Android container memory is very low (<300MB), device stays offline
+
+A: A normal Android 12 should use 300MB+ after boot. If the container is running but memory is only 100-200MB, Android has not finished booting (`boot_completed != 1`), so the agent cannot be deployed and the device never comes online. Troubleshoot:
+
+**1. Check boot status:**
+```bash
+docker exec androidemu-android getprop sys.boot_completed
+```
+- Returns `1` → booted, skip to step 3
+- Returns empty or `0` → not booted, continue to step 2
+
+**2. Check boot logs:**
+```bash
+docker logs androidemu-android --tail 80 2>&1 | grep -iE "error|fail|panic|binder|surface|zygote|boot"
+```
+
+| Log keyword | Cause | Fix |
+|------------|-------|-----|
+| `binder`, `binderfs` | binder driver missing | x86: install `binder_linux` from App Center first, then `docker restart androidemu-android` |
+| `SurfaceFlinger`, `gpu`, `dri` | GPU passthrough failed | Run GPU fix commands below |
+| `out of memory`, `lowmemory` | Insufficient RAM | Close other apps, keep at least 2GB free |
+| `zygote` restarting | System service crash | Reinitialize data volume (wipes Android data): `docker compose -p androidemu down && docker volume rm androidemu-data && docker compose -p androidemu up -d` |
+
+**3. GPU fix (for graphical glitches or SurfaceFlinger crashes):**
+```bash
+docker exec -u 0 androidemu-android chmod 666 /dev/dri/card0 /dev/dri/renderD128
+docker exec -u 0 androidemu-android sh -c 'setprop ctl.restart surfaceflinger'
+sleep 60
+docker exec androidemu-android getprop sys.boot_completed
+```
+
+**4. Manual agent injection (when boot_completed=1 but device still offline):**
+```bash
+# Extract agent from scrcpy-over-webrtc image (first time only)
+docker run --rm -v /var/apps/androidemu/var/agent:/out --entrypoint /bin/sh docker.fnnas.com/buutuu/scrcpy-over-webrtc:latest -c "cp /app/agent_binaries/cloudphone-agent-amd64 /app/agent_binaries/libsys_core.so /out/ && chmod 755 /out/cloudphone-agent-amd64"
+# Inject and start (replace <NAS_IP> with your NAS LAN IP; use amd64 for x86, arm64 for ARM)
+docker cp /var/apps/androidemu/var/agent/cloudphone-agent-amd64 androidemu-android:/data/local/tmp/cloudphone-agent
+docker cp /var/apps/androidemu/var/agent/libsys_core.so androidemu-android:/data/local/tmp/libsys_core.so
+docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling wss://<NAS_IP>:8443/register_agent -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=udp,turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=tcp,stun:<NAS_IP>:3478' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
+sleep 3
+docker exec androidemu-android pidof cloudphone-agent
+```
+
+### Q: WebRTC connection fails, black screen, or endless loading
+
+A: The most common cause is `PUBLIC_IP` being reset to `127.0.0.1` (after container recreation, the compose default takes effect), so the TURN relay address handed to clients is `127.0.0.1`, which clients cannot reach.
+
+**Diagnostic commands:**
+```bash
+echo "===== PUBLIC_IP ====="
+docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
+echo "===== agent running? ====="
+docker exec androidemu-android pidof cloudphone-agent || echo "agent not running"
+echo "===== agent log (last 20 lines) ====="
+docker exec androidemu-android tail -20 /data/local/tmp/agent.log 2>/dev/null
+echo "===== webrtc container log ====="
+docker logs androidemu-webrtc --tail 40 2>&1 | grep -iE 'relay addr|allocation|error|fail|Unauthorized' | tail -15
+```
+
+**Fix (when PUBLIC_IP=127.0.0.1, replace <NAS_IP> with your NAS LAN IP):**
+```bash
+cd /var/apps/androidemu/target/docker
+sed -i 's/PUBLIC_IP=127\.0\.0\.1/PUBLIC_IP=<NAS_IP>/g' docker-compose.yaml
+docker compose -p androidemu up -d --force-recreate webrtc
+sleep 10
+docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
+```
+After confirming `PUBLIC_IP` is your LAN IP, reopen the cloud phone page to connect.
+
 ### Q: No sound
 
 A: Current version disables audio by default (opus encoder in redroid container is Codec2 version, scrcpy-server only recognizes OMX version, enabling audio causes `createEncoder` failure and stream disconnect). Dual protection via RUNTIME_SHIM hijacking WebSocket.send and gateway intercepting `/api/default_settings`. Future versions will attempt fix.

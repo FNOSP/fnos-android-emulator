@@ -381,6 +381,75 @@ A: 按以下步骤排查：
 3. 如果只有单个容器出现卡顿，可在 Docker 中找到对应容器点击「重启」即可
 4. 若以上方法均无效，请将软件卡顿的截图或录屏，以及 Docker 容器中复制的日志打包为文本文档，通过下方反馈渠道任选一项进行反馈
 
+### Q: 安卓容器内存很低（<300MB）、设备一直不在线
+
+A: 正常 Android 12 启动后内存应在 300MB 以上。若容器在运行但内存只有 100-200MB，说明安卓系统未完成启动（`boot_completed != 1`），agent 无法部署，设备永远不在线。按以下步骤排查：
+
+**1. 确认启动状态：**
+```bash
+docker exec androidemu-android getprop sys.boot_completed
+```
+- 返回 `1` → 已启动，跳到第3步
+- 返回空或 `0` → 未启动，继续第2步
+
+**2. 查看启动日志找原因：**
+```bash
+docker logs androidemu-android --tail 80 2>&1 | grep -iE "error|fail|panic|binder|surface|zygote|boot"
+```
+
+| 日志关键词 | 原因 | 修复方法 |
+|-----------|------|---------|
+| `binder`、`binderfs` | binder 驱动缺失 | x86 设备先在应用中心安装 `binder_linux`，再 `docker restart androidemu-android` |
+| `SurfaceFlinger`、`gpu`、`dri` | GPU 直通失败 | 执行下方 GPU 修复命令 |
+| `out of memory`、`lowmemory` | 内存不足 | 关闭其他应用，至少保留 2GB 可用内存 |
+| `zygote` 反复重启 | 系统服务崩溃 | 删除数据卷重新初始化（会清空安卓数据）：`docker compose -p androidemu down && docker volume rm androidemu-data && docker compose -p androidemu up -d` |
+
+**3. GPU 修复命令（画面异常或 SurfaceFlinger 崩溃时用）：**
+```bash
+docker exec -u 0 androidemu-android chmod 666 /dev/dri/card0 /dev/dri/renderD128
+docker exec -u 0 androidemu-android sh -c 'setprop ctl.restart surfaceflinger'
+sleep 60
+docker exec androidemu-android getprop sys.boot_completed
+```
+
+**4. 手动注入 agent（boot_completed=1 但设备仍不在线时用）：**
+```bash
+# 从穿云投屏镜像取出 agent（首次需要）
+docker run --rm -v /var/apps/androidemu/var/agent:/out --entrypoint /bin/sh docker.fnnas.com/buutuu/scrcpy-over-webrtc:latest -c "cp /app/agent_binaries/cloudphone-agent-amd64 /app/agent_binaries/libsys_core.so /out/ && chmod 755 /out/cloudphone-agent-amd64"
+# 注入并启动（将 <NAS_IP> 替换为你的 NAS 局域网 IP；x86 用 amd64，ARM 用 arm64）
+docker cp /var/apps/androidemu/var/agent/cloudphone-agent-amd64 androidemu-android:/data/local/tmp/cloudphone-agent
+docker cp /var/apps/androidemu/var/agent/libsys_core.so androidemu-android:/data/local/tmp/libsys_core.so
+docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling wss://<NAS_IP>:8443/register_agent -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=udp,turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=tcp,stun:<NAS_IP>:3478' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
+sleep 3
+docker exec androidemu-android pidof cloudphone-agent
+```
+
+### Q: WebRTC 连接失败、黑屏或一直转圈
+
+A: 最常见原因是 `PUBLIC_IP` 被重置为 `127.0.0.1`（重建容器后 compose 默认值生效），导致 TURN 分发给客户端的中继地址是 `127.0.0.1`，客户端连不上。
+
+**诊断命令：**
+```bash
+echo "===== PUBLIC_IP ====="
+docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
+echo "===== agent 是否运行 ====="
+docker exec androidemu-android pidof cloudphone-agent || echo "agent 未运行"
+echo "===== agent 日志最后20行 ====="
+docker exec androidemu-android tail -20 /data/local/tmp/agent.log 2>/dev/null
+echo "===== webrtc 容器日志 ====="
+docker logs androidemu-webrtc --tail 40 2>&1 | grep -iE 'relay addr|allocation|error|fail|Unauthorized' | tail -15
+```
+
+**修复命令（确认 PUBLIC_IP=127.0.0.1 时用，将 <NAS_IP> 替换为你的 NAS 局域网 IP）：**
+```bash
+cd /var/apps/androidemu/target/docker
+sed -i 's/PUBLIC_IP=127\.0\.0\.1/PUBLIC_IP=<NAS_IP>/g' docker-compose.yaml
+docker compose -p androidemu up -d --force-recreate webrtc
+sleep 10
+docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
+```
+确认 `PUBLIC_IP` 为你的局域网 IP 后，重新打开云手机画面页面连接。
+
 ### Q: 没有声音
 
 A: 当前版本默认禁用音频（redroid 容器内的 opus 编码器为 Codec2 版本，scrcpy-server 只识别 OMX 版本，开启音频会导致 `createEncoder` 失败并断流）。已通过 RUNTIME_SHIM 劫持 WebSocket.send 和 gateway 拦截 `/api/default_settings` 双重保障禁用音频。后续版本将尝试修复。
