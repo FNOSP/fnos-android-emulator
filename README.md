@@ -239,7 +239,7 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 
 ```
 ┌─────────────────────────────────────────────┐
-│  飞牛 fnOS 主机                              │ 
+│  飞牛 fnOS 主机                              │
 │                                             │
 │  ┌──────────────────┐  ┌─────────────────┐  │
 │  │  androidemu-     │  │  androidemu-    │  │
@@ -251,16 +251,16 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 │  │  bridge 网络     │  │  host 网络       │  │
 │  │  privileged      │  │  SYS_NICE       │  │
 │  └──────────────────┘  └─────────────────┘  │
-│          │                       │          │
-│          └───── scrcpy ─────────┘           │
+│            │                    │           │
+│            └────── scrcpy ──────┘           │
 │                  (ADB over TCP)             │
 └─────────────────────────────────────────────┘
-         │
-         ▼
-   飞牛统一网关
-         │
-         ▼
-      浏览器
+                       │
+                       ▼
+                 飞牛统一网关
+                       │
+                       ▼
+                    浏览器
 ```
 
 ---
@@ -317,6 +317,14 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 ---
 
 ## 常见问题
+
+### Q: 首次安装时弹出「无法安装 androidemu - 执行脚本出错且原因未知」
+
+A: 优先检查 **binder 驱动**是否已安装：
+- **x86 设备**：需先在飞牛应用中心安装「binder_linux 驱动」依赖应用，产生 `/dev/binder` 设备节点后再安装本应用
+- **ARM 设备**：多数设备内核已内置 binder（如 RK3588 等），但部分精简内核可能未启用，需确认内核支持 `CONFIG_ANDROID_BINDER_IPC` / binderfs
+
+若已安装驱动（或 ARM 设备本身支持）但仍弹出此错误，请务必通过下方「问题反馈」章节中的任一链接反馈，以便排查具体原因。
 
 ### Q: 打开后显示「未授权」或「0 台在线」
 

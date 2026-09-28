@@ -123,6 +123,8 @@ When accessing via fnOS official remote domain:
 - ⚠️ Framerate and latency affected by upstream bandwidth
 
 > Reason: fnOS reverse proxy only passes TCP (HTTP/HTTPS/WebSocket), not UDP. WebRTC media stream uses UDP, so auto-downgrades to WebSocket casting.
+>
+> v3.6.7+ enhanced external network auto-adaptation: auto-detect and switch to WebSocket casting mode, if switch fails then provide MJPEG fallback screen, ensuring external network access always available.
 
 ### fnOS APP
 
@@ -237,7 +239,7 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 
 ```
 ┌─────────────────────────────────────────────┐
-│  fnOS Host                                  │ 
+│  fnOS Host                                  │
 │                                             │
 │  ┌──────────────────┐  ┌─────────────────┐  │
 │  │  androidemu-     │  │  androidemu-    │  │
@@ -249,16 +251,16 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 │  │  bridge network  │  │  host network   │  │
 │  │  privileged      │  │  SYS_NICE       │  │
 │  └──────────────────┘  └─────────────────┘  │
-│          │                       │          │
-│          └───── scrcpy ─────────┘           │
+│            │                    │           │
+│            └────── scrcpy ──────┘           │
 │                  (ADB over TCP)             │
 └─────────────────────────────────────────────┘
-         │
-         ▼
-   fnOS Unified Gateway
-         │
-         ▼
-      Browser
+                       │
+                       ▼
+            fnOS Unified Gateway
+                       │
+                       ▼
+                   Browser
 ```
 
 ---
@@ -316,6 +318,14 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 
 ## FAQ
 
+### Q: "Unable to install androidemu - script execution error with unknown reason" during first-time installation
+
+A: First check if the **binder driver** is installed:
+- **x86 devices**: Install the "binder_linux driver" dependency app from the fnOS App Center first, which creates the `/dev/binder` device node, then install this app
+- **ARM devices**: Most devices have binder built into the kernel (e.g., RK3588), but some stripped kernels may not have it enabled. Verify kernel support for `CONFIG_ANDROID_BINDER_IPC` / binderfs
+
+If the driver is already installed (or the ARM device natively supports it) but this error still appears, please feedback via any link in the "Feedback Links & Channels" section below so we can investigate the specific cause.
+
 ### Q: Shows "Unauthorized" or "0 devices online" after opening
 
 A: This is Scrcpy License authorization prompt. Newly installed devices currently have 20 devices 3-month free trial (from Nov 1, 2026, expires to 10 devices, other basic features all free). Wait for container to fully start (~1-2 minutes) then refresh page. If still unauthorized, check if container is running:
@@ -343,6 +353,17 @@ A: Troubleshoot in this order:
 3. Confirm PUBLIC_IP is LAN IP not 127.0.0.1: `docker exec androidemu-webrtc env | grep PUBLIC_IP`
 4. Confirm ICE_SERVERS contains correct LAN IP: `docker exec androidemu-webrtc env | grep ICE_SERVERS`
 5. Try clicking "Switch to WebSocket casting"
+
+### Q: WebSocket (WS) casting shows connection failed
+
+A: When using WebSocket casting (LAN or external network), if "Connection failed" page appears, please wait patiently:
+- **Within 2 minutes**: System will automatically retry and connect, eventually showing Android container homepage, no action needed
+- **Still connection failed after 2 minutes**: Troubleshoot as follows:
+  1. Confirm Android container has fully started (first boot takes ~1-2 minutes), check container status in fnOS Docker
+  2. Refresh page and re-enter
+  3. LAN users can try directly accessing `https://<NAS_IP>:8443`
+  4. External network users can use MJPEG fallback screen from top-right prompt
+  5. If still unresolved, check container logs or contact us via feedback channels
 
 ### Q: Container restarts repeatedly
 
@@ -430,7 +451,7 @@ Key technical conclusions verified during development, for secondary development
 If you find this app useful or are satisfied with the publisher, please consider supporting via donation to help the publisher and other contributors continue maintaining the app. Any amount or no donation is appreciated; please note "donation" in payment remarks, thanks.
 Or give a star to support the project.
 
-> Note: Above donation codes only for this project's maintenance and development support, please do not盗用 or use for other purposes, thanks for understanding.
+> Note: Above donation codes only for this project's maintenance and development support, please do not misappropriate or use for other purposes, thanks for understanding.
 
 ---
 
