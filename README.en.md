@@ -373,6 +373,14 @@ A: Common causes:
 - Check logs: `docker logs androidemu-android`
 - webrtc container restart: check for `nice: setpriority(-10): Permission denied`, confirm compose includes `cap_add: SYS_NICE`
 
+### Q: Container is laggy, unresponsive to clicks or gestures
+
+A: Troubleshoot step by step:
+1. Close the app page (or browser tab), reopen it and try clicking/swiping again
+2. If still unresponsive, go to the app detail page in fnOS App Center, click "Stop", then "Start" again
+3. If only one container is laggy, find that container in Docker and click "Restart"
+4. If none of the above works, please capture a screenshot or screen recording of the lag, and export the Docker container logs as a text file, then submit via any of the feedback channels below
+
 ### Q: No sound
 
 A: Current version disables audio by default (opus encoder in redroid container is Codec2 version, scrcpy-server only recognizes OMX version, enabling audio causes `createEncoder` failure and stream disconnect). Dual protection via RUNTIME_SHIM hijacking WebSocket.send and gateway intercepting `/api/default_settings`. Future versions will attempt fix.

@@ -373,6 +373,14 @@ A: 常见原因：
 - 查看日志：`docker logs androidemu-android`
 - webrtc 容器重启：检查是否有 `nice: setpriority(-10): Permission denied`，确认 compose 中包含 `cap_add: SYS_NICE`
 
+### Q: 容器卡顿、无法点击或移动
+
+A: 按以下步骤排查：
+1. 先关闭软件页面（或网页），重新打开后再尝试点击/移动
+2. 若仍无效，在飞牛应用中心的软件详情页点击「停用」，停用后再「启用」
+3. 如果只有单个容器出现卡顿，可在 Docker 中找到对应容器点击「重启」即可
+4. 若以上方法均无效，请将软件卡顿的截图或录屏，以及 Docker 容器中复制的日志打包为文本文档，通过下方反馈渠道任选一项进行反馈
+
 ### Q: 没有声音
 
 A: 当前版本默认禁用音频（redroid 容器内的 opus 编码器为 Codec2 版本，scrcpy-server 只识别 OMX 版本，开启音频会导致 `createEncoder` 失败并断流）。已通过 RUNTIME_SHIM 劫持 WebSocket.send 和 gateway 拦截 `/api/default_settings` 双重保障禁用音频。后续版本将尝试修复。
