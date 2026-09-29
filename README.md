@@ -101,47 +101,7 @@
 > - 8443、3478、50000-50100 在局域网内自动可用，无需配置。
 > - 需要外网访问时，8443 走反向代理即可；WebRTC 投屏若在外网使用，必须同时让 3478（TCP+UDP）可达，否则会黑屏或一直转圈。
 
-### ADB 5556 端口开放方法
 
-ADB 5556 **默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS 本机可直接连接。如需从局域网其他设备（如电脑）连接，需手动开放：
-
-**第 1 步：SSH 登录 NAS，编辑配置文件**
-
-```bash
-nano /var/apps/androidemu/var/ports.conf
-```
-
-添加或修改以下内容：
-
-```
-ADB_BIND=0.0.0.0
-```
-
-> nano 操作：按 `Ctrl+O` 保存，按 `回车` 确认文件名，按 `Ctrl+X` 退出。
-
-**第 2 步：重启 ADB 转发进程**
-
-```bash
-sudo pkill -f redroid_adb_forward.sh && sudo bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
-```
-
-**第 3 步：验证端口是否开放**
-
-```bash
-ss -tln | grep 5556
-```
-
-应显示 `0.0.0.0:5556`，表示已监听所有网卡。
-
-**第 4 步：从电脑连接**
-
-```bash
-adb connect <NAS_IP>:5556
-```
-
-> ⚠️ **安全提醒**：ADB 无密码验证，用完后建议改回 `ADB_BIND=127.0.0.1` 并重启转发，避免端口长期暴露。
-
----
 
 ## 安装方法
 
@@ -346,9 +306,43 @@ https://<NAS_IP>:8443
 
 ## ADB 连接
 
-> **前提**：ADB 5556 端口默认仅监听 `127.0.0.1`，如需从电脑等外部设备连接，请先按上文「ADB 5556 端口开放方法」开放端口。
+> **重要说明**：ADB 是 Android 调试通道，**只用于执行命令、安装 APK、调试，不传输画面**。查看安卓画面请通过穿云投屏 Web 界面（`http://<NAS_IP>:8443`）或穿云投屏 APP。Scrcpy / QtScrcpy 等依赖 scrcpy-server 的远程控制软件**不兼容**（本容器使用穿云投屏 cloudphone-agent，无 scrcpy-server），会出现一直转圈无画面的情况。
 
-**第 1 步：连接安卓容器**
+ADB 5556 **默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS 本机可直接连接。如需从局域网其他设备（如电脑）连接，需先手动开放端口：
+
+### 一、开放 ADB 5556 端口
+
+**第 1 步：SSH 登录 NAS，编辑配置文件**
+
+```bash
+nano /var/apps/androidemu/var/ports.conf
+```
+
+添加或修改以下内容：
+
+```
+ADB_BIND=0.0.0.0
+```
+
+> nano 操作：按 `Ctrl+O` 保存，按 `回车` 确认文件名，按 `Ctrl+X` 退出。
+
+**第 2 步：重启 ADB 转发进程**
+
+```bash
+sudo pkill -f redroid_adb_forward.sh && sudo bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
+```
+
+**第 3 步：验证端口是否开放**
+
+```bash
+ss -tln | grep 5556
+```
+
+应显示 `0.0.0.0:5556`，表示已监听所有网卡。
+
+### 二、连接安卓容器
+
+**第 4 步：从电脑连接**
 
 将 `<NAS_IP>` 替换为你的 NAS 实际局域网 IP 地址：
 
@@ -358,7 +352,7 @@ adb connect <NAS_IP>:5556
 
 连接成功会显示 `connected to <NAS_IP>:5556`。
 
-**第 2 步：进入安卓 shell**
+**第 5 步：进入安卓 shell**
 
 ```bash
 adb shell
@@ -367,6 +361,8 @@ adb shell
 进入后即可执行安卓命令（如 `pm list packages` 查看已安装应用）。
 
 > 也可以不连 ADB，直接在穿云投屏界面的「终端」中使用安卓 shell。
+
+> ⚠️ **安全提醒**：ADB 无密码验证，用完后建议改回 `ADB_BIND=127.0.0.1` 并重启转发，避免端口长期暴露。
 
 ---
 

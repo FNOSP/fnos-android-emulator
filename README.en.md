@@ -83,47 +83,7 @@ This application uses the following ports. Only 8443 is automatically reverse-pr
 > - 8443, 3478, and 50000-50100 work automatically on the LAN with no configuration.
 > - For external access: 8443 goes through a reverse proxy; if using WebRTC casting externally, port 3478 (TCP+UDP) must also be reachable, otherwise you get a black screen or endless loading.
 
-### How to Open ADB Port 5556
 
-ADB 5556 **binds to 127.0.0.1 by default** (security: ADB has no password), accessible from the NAS itself only. To connect from another LAN device (e.g. your PC), manually open it:
-
-**Step 1: SSH into the NAS and edit the config file**
-
-```bash
-nano /var/apps/androidemu/var/ports.conf
-```
-
-Add or modify the following line:
-
-```
-ADB_BIND=0.0.0.0
-```
-
-> nano controls: press `Ctrl+O` to save, press `Enter` to confirm filename, press `Ctrl+X` to exit.
-
-**Step 2: Restart the ADB forwarder**
-
-```bash
-sudo pkill -f redroid_adb_forward.sh && sudo bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
-```
-
-**Step 3: Verify the port is open**
-
-```bash
-ss -tln | grep 5556
-```
-
-It should show `0.0.0.0:5556`, meaning it's listening on all network interfaces.
-
-**Step 4: Connect from your PC**
-
-```bash
-adb connect <NAS_IP>:5556
-```
-
-> ⚠️ **Security note**: ADB has no password authentication. When done, change back to `ADB_BIND=127.0.0.1` and restart the forwarder to avoid leaving the port exposed.
-
----
 
 ## Installation Requirements
 
@@ -345,9 +305,43 @@ Cloud Phone officially provides a standalone **Android APP client**, offering a 
 
 ## ADB Connection
 
-> **Prerequisite**: ADB port 5556 binds to `127.0.0.1` by default. To connect from an external device like your PC, first open the port following "How to Open ADB Port 5556" above.
+> **Important**: ADB is an Android debugging channel — **it only runs commands, installs APKs, and debugs; it does NOT stream the screen**. To view the Android screen, use the Scrcpy-over-WebRTC web interface (`http://<NAS_IP>:8443`) or the Scrcpy-over-WebRTC mobile APP. Remote control tools like Scrcpy / QtScrcpy that depend on scrcpy-server are **incompatible** (this container uses cloudphone-agent, no scrcpy-server), and will show endless loading with no screen.
 
-**Step 1: Connect to the Android container**
+ADB 5556 **binds to 127.0.0.1 by default** (security: ADB has no password), accessible from the NAS itself only. To connect from another LAN device (e.g. your PC), first manually open the port:
+
+### 1. Open ADB Port 5556
+
+**Step 1: SSH into the NAS and edit the config file**
+
+```bash
+nano /var/apps/androidemu/var/ports.conf
+```
+
+Add or modify the following line:
+
+```
+ADB_BIND=0.0.0.0
+```
+
+> nano controls: press `Ctrl+O` to save, press `Enter` to confirm filename, press `Ctrl+X` to exit.
+
+**Step 2: Restart the ADB forwarder**
+
+```bash
+sudo pkill -f redroid_adb_forward.sh && sudo bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
+```
+
+**Step 3: Verify the port is open**
+
+```bash
+ss -tln | grep 5556
+```
+
+It should show `0.0.0.0:5556`, meaning it's listening on all network interfaces.
+
+### 2. Connect to Android Container
+
+**Step 4: Connect from your PC**
 
 Replace `<NAS_IP>` with your NAS's actual LAN IP address:
 
@@ -357,7 +351,7 @@ adb connect <NAS_IP>:5556
 
 A successful connection shows `connected to <NAS_IP>:5556`.
 
-**Step 2: Enter Android shell**
+**Step 5: Enter Android shell**
 
 ```bash
 adb shell
@@ -366,6 +360,8 @@ adb shell
 Once inside, you can run Android commands (e.g. `pm list packages` to list installed apps).
 
 > You can also skip ADB and use Android shell directly in the "Terminal" of the Scrcpy interface.
+
+> ⚠️ **Security note**: ADB has no password authentication. When done, change back to `ADB_BIND=127.0.0.1` and restart the forwarder to avoid leaving the port exposed.
 
 ---
 
