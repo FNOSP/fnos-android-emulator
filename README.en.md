@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.6.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.7.0-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -17,6 +17,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 
 - [Features](#features)
 - [Installation Requirements](#installation-requirements)
+- [Port Reference](#port-reference)
 - [Installation Methods](#installation-methods)
 - [Access Methods](#access-methods)
 - [Default Account](#default-account)
@@ -55,9 +56,38 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Performance Optimization**: webrtc/turn process high-priority scheduling, streamlined background services, CPU dynamic frequency scaling (see below)
 - **Safe Installation/Update Interruption**: Auto-cleanup of temporary data if installation or update is cancelled midway, preventing placeholder issues that block future installations (v3.6.0+)
 - **Auto Container Detection**: Gateway auto-detects Android container status, container automatically comes online after startup, no manual operation needed
+- **Installation Pre-check (v3.7.0+)**: Auto-detects binder driver, memory (<1GB blocks), Docker availability, disk space (<2GB blocks), GPU capability before installation. Gives clear reasons on failure instead of generic "script execution error with unknown reason"
+- **Container Health Check (v3.7.0+)**: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
+- **One-Click Fix (v3.7.0+)**: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
+- **Friendly Status Page (v3.7.0+)**: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
 
 ---
 
+
+## Port Reference
+
+This application uses the following ports. Only 8443 is automatically reverse-proxied by fnOS; all other ports must be handled manually depending on your use case:
+
+| Port | Protocol | Purpose | LAN Use | External Access |
+|------|----------|---------|---------|-----------------|
+| 8443 | TCP | scrcpy-over-webrtc Web UI + signaling | Auto (fnOS reverse proxy) | Requires manual reverse proxy / tunnel |
+| 3478 | TCP+UDP | TURN/STUN relay (required for WebRTC casting) | Auto (host network) | Requires manual port mapping / tunnel |
+| 5556 | TCP | ADB debugging (external adb connect) | **Localhost only by default** (manual open required for LAN) | Requires manual port mapping / tunnel |
+| 50000-50100 | UDP | WebRTC media (TURN relay fallback) | Auto (host network) | Usually no need to expose; TURN works over 3478 |
+
+> **Notes:**
+> - The fnOS App Center `service_port` only declares 8443 for the unified gateway reverse proxy — it does not mean the app only listens on this one port.
+> - The webrtc container uses `host` network mode, so 3478 and 50000-50100 listen directly on the host, no Docker port mapping needed.
+> - ADB 5556 is forwarded by a host socat process to the Android container's port 5555 — not a Docker mapping.
+> - **ADB 5556 binds to 127.0.0.1 by default** (security: ADB has no password), accessible from the NAS itself only. To connect from another LAN device (e.g. your PC) via `adb connect <NAS_IP>:5556`, manually open it:
+>   1. SSH into the NAS, edit `/var/apps/androidemu/var/ports.conf`, add or modify the line: `ADB_BIND=0.0.0.0`
+>   2. Restart ADB forwarder: `pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install`
+>   3. Verify: `ss -tlnp | grep 5556` should show `0.0.0.0:5556`
+>   4. When done, change back to `ADB_BIND=127.0.0.1` to avoid leaving an unauthenticated port exposed
+> - 8443, 3478, and 50000-50100 work automatically on the LAN with no configuration.
+> - For external access: 8443 goes through a reverse proxy; if using WebRTC casting externally, port 3478 (TCP+UDP) must also be reachable, otherwise you get a black screen or endless loading.
+
+---
 
 ## Installation Requirements
 
@@ -71,7 +101,9 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 | Network | LAN | — |
 
 > **X86 devices**: Docker needs `/dev/dri` passthrough for hardware acceleration; auto-fallback to software rendering if no GPU; must install binder_linux driver before downloading (available in App Center, just search), otherwise app won't work or installation will be rejected.
-> **ARM devices**: Auto uses software rendering (gpu_mode=guest), no extra driver needed.
+> **ARM devices**: Auto uses software rendering (gpu_mode=guest), no extra driver needed, and binder_linux is not required.
+>
+> **Architecture Compatibility**: x86_64 has been thoroughly tested on fnOS. ARM64 (aarch64) is adapted at the code level (auto software rendering, in-container binderfs, architecture detection), but due to limited test devices, ARM users are advised to monitor boot status after installation. Feedback is welcome via the channels below.
 
 ---
 
@@ -470,13 +502,29 @@ A: Common causes:
 - Check logs: `docker logs androidemu-android`
 - webrtc container restart: check for `nice: setpriority(-10): Permission denied`, confirm compose includes `cap_add: SYS_NICE`
 
-### Q: Container is laggy, unresponsive to clicks or gestures
+### Q: Container is laggy, frozen, unresponsive to clicks or gestures
 
-A: Troubleshoot step by step:
+A: **v3.7.0+ users**: Open the app page. If the upstream service is temporarily unavailable, a friendly status page will automatically appear, including:
+- **Health Status**: Auto-detects boot status, uptime, OOM kills, whether surfaceflinger/agent are running
+- **One-Click Fix Buttons**:
+  - "Fix GPU/Screen": Auto chmod /dev/dri + restart surfaceflinger (fixes screen freeze caused by GPU permission issues)
+  - "Restart Android Container": Restarts the entire Android container
+  - "Restart Screen Service": Restarts only surfaceflinger, other processes unaffected
+
+**General troubleshooting (all versions):**
 1. Close the app page (or browser tab), reopen it and try clicking/swiping again
 2. If still unresponsive, go to the app detail page in fnOS App Center, click "Stop", then "Start" again
 3. If only one container is laggy, find that container in Docker and click "Restart"
-4. If none of the above works, please capture a screenshot or screen recording of the lag, and export the Docker container logs as a text file, then submit via any of the feedback channels below
+4. Manually check health status:
+   ```bash
+   # Check if container is running
+   docker ps --filter name=androidemu
+   # Check if Android finished booting
+   docker exec androidemu-android getprop sys.boot_completed
+   # Check if killed by OOM
+   docker inspect -f '{{.State.OOMKilled}}' androidemu-android
+   ```
+5. If none of the above works, please capture a screenshot or screen recording of the lag, and export the Docker container logs as a text file, then submit via any of the feedback channels below
 
 ### Q: Android container memory is very low (<300MB), device stays offline
 

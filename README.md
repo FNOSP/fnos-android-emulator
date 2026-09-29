@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.6.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.7.0-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -17,6 +17,7 @@
 
 - [功能特性](#功能特性)
 - [安装要求](#安装要求)
+- [端口说明](#端口说明)
 - [安装方法](#安装方法)
 - [访问方式](#访问方式)
 - [默认账号](#默认账号)
@@ -55,6 +56,10 @@
 - **性能优化**：webrtc/turn 进程高优先级调度、精简后台服务、CPU 动态调频（见下文）
 - **安装/更新中断安全**：安装或更新中途取消会自动清理临时数据，避免占位导致下次无法安装（v3.6.0+）
 - **自动容器检测**：网关自动检测安卓容器状态，容器启动后自动上线，无需手动操作
+- **安装预检查（v3.7.0+）**：安装前自动检测 binder 驱动、内存（<1GB 阻断）、Docker 可用性、磁盘空间（<2GB 阻断）、GPU 能力，不通过时给出明确原因，不再显示"执行脚本出错且原因未知"
+- **容器健康检查（v3.7.0+）**：实时检测 boot 状态、运行时长、OOM、surfaceflinger/agent 进程，自动识别"启动超时""内存不足被杀死""画面服务异常"等问题
+- **一键修复（v3.7.0+）**：状态页提供"修复GPU/画面""重启安卓容器""重启画面服务"三个按钮，无需 SSH 命令行即可自助修复常见问题
+- **友好状态页（v3.7.0+）**：上游服务不可用时显示美观的状态页（容器状态表格、常见问题排查、刷新按钮），不再是纯文本 "Bad Gateway"
 
 ---
 
@@ -71,7 +76,34 @@
 | 网络 | 局域网 | — |
 
 > **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染；在下载应用之前必须安装 binder_linux 驱动（应用中心里面有，直接搜索就可以），否则无法使用或者被拒绝安装。
-> **ARM 设备**：自动使用软件渲染（gpu_mode=guest），无需额外驱动。
+> **ARM 设备**：自动使用软件渲染（gpu_mode=guest），无需额外驱动，也不需要 binder_linux。
+>
+> **架构兼容性说明**：X86_64 已在飞牛 fnOS 上充分测试；ARM64（aarch64）代码层面已做适配（自动软件渲染、容器内 binderfs、架构判断），但因测试设备有限，建议 ARM 用户安装后留意启动状态，如有问题欢迎通过下方渠道反馈。
+
+---
+
+## 端口说明
+
+本应用实际使用以下端口，其中仅 8443 由飞牛应用中心自动反代，其余端口需根据使用场景自行处理：
+
+| 端口 | 协议 | 用途 | 局域网使用 | 外网访问 |
+|------|------|------|-----------|---------|
+| 8443 | TCP | 穿云投屏 Web 界面 + 信令 | 自动可用（飞牛反代） | 需自行配置反向代理/内网穿透 |
+| 3478 | TCP+UDP | TURN/STUN 中继（WebRTC 投屏必需） | 自动可用（host 网络） | 需自行端口映射或内网穿透 |
+| 5556 | TCP | ADB 调试（外部 adb connect） | **默认仅本机可用**（需手动开放后局域网可用） | 需自行端口映射或内网穿透 |
+| 50000-50100 | UDP | WebRTC 媒体流（TURN relay 备用） | 自动可用（host 网络） | 通常无需外网开放，TURN 走 3478 即可 |
+
+> **注意**：
+> - 飞牛应用中心的 `service_port` 仅声明 8443，用于统一网关反代，不代表软件只监听这一个端口。
+> - webrtc 容器使用 `host` 网络模式，3478 和 50000-50100 直接监听宿主机，无需 Docker 端口映射。
+> - ADB 5556 由宿主机 socat 进程转发到安卓容器的 5555，非 Docker 映射。
+> - **ADB 5556 默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS 本机可直接连接；如需从局域网其他设备（如电脑）执行 `adb connect <NAS_IP>:5556`，需手动开放：
+>   1. SSH 登录 NAS，编辑 `/var/apps/androidemu/var/ports.conf`，添加或修改一行：`ADB_BIND=0.0.0.0`
+>   2. 重启 ADB 转发：`pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install`
+>   3. 验证：`ss -tlnp | grep 5556` 应显示 `0.0.0.0:5556`
+>   4. 用完建议改回 `ADB_BIND=127.0.0.1`，避免无鉴权端口长期暴露
+> - 8443、3478、50000-50100 在局域网内自动可用，无需配置。
+> - 需要外网访问时，8443 走反向代理即可；WebRTC 投屏若在外网使用，必须同时让 3478（TCP+UDP）可达，否则会黑屏或一直转圈。
 
 ---
 
@@ -470,13 +502,29 @@ A: 常见原因：
 - 查看日志：`docker logs androidemu-android`
 - webrtc 容器重启：检查是否有 `nice: setpriority(-10): Permission denied`，确认 compose 中包含 `cap_add: SYS_NICE`
 
-### Q: 容器卡顿、无法点击或移动
+### Q: 容器卡顿、无法点击或移动、一动不动
 
-A: 按以下步骤排查：
+A: **v3.7.0+ 用户**：打开应用页面，如果上游服务暂时不可用，会自动显示友好状态页，其中包含：
+- **健康状态**：自动检测 boot 状态、运行时长、是否 OOM、surfaceflinger/agent 是否运行
+- **一键修复按钮**：
+  - 「修复GPU/画面」：自动 chmod /dev/dri + 重启 surfaceflinger（解决 GPU 权限问题导致的画面卡住）
+  - 「重启安卓容器」：重启整个安卓容器
+  - 「重启画面服务」：只重启 surfaceflinger，不影响容器内其他进程
+
+**所有版本通用排查步骤：**
 1. 先关闭软件页面（或网页），重新打开后再尝试点击/移动
 2. 若仍无效，在飞牛应用中心的软件详情页点击「停用」，停用后再「启用」
 3. 如果只有单个容器出现卡顿，可在 Docker 中找到对应容器点击「重启」即可
-4. 若以上方法均无效，请将软件卡顿的截图或录屏，以及 Docker 容器中复制的日志打包为文本文档，通过下方反馈渠道任选一项进行反馈
+4. 手动检查健康状态：
+   ```bash
+   # 查看容器是否在运行
+   docker ps --filter name=androidemu
+   # 查看安卓是否启动完成
+   docker exec androidemu-android getprop sys.boot_completed
+   # 查看是否被OOM杀死
+   docker inspect -f '{{.State.OOMKilled}}' androidemu-android
+   ```
+5. 若以上方法均无效，请将软件卡顿的截图或录屏，以及 Docker 容器中复制的日志打包为文本文档，通过下方反馈渠道任选一项进行反馈
 
 ### Q: 安卓容器内存很低（<300MB）、设备一直不在线
 
