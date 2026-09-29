@@ -27,6 +27,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - [Performance Optimization](#performance-optimization)
 - [Serial Console (Developer Debugging)](#serial-console-developer-debugging)
 - [Container Architecture](#container-architecture)
+- [Tech Stack & Translation Layers](#tech-stack--translation-layers)
 - [Audit Compliance Notes](#audit-compliance-notes)
 - [FAQ](#faq)
 - [Known Limitations](#known-limitations)
@@ -39,7 +40,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 
 ## Features
 
-- **Android 12 System**: x86_64 architecture, built-in ARM translation layer (libndk_translation), most ARM apps can be installed and run directly
+- **Android 12 System**: x86_64 architecture, image ships with **libndk_translation** (Google's official NDK translation layer) enabled by default, supports x86_64/arm64-v8a/x86/armeabi-v7a/armeabi ABIs, most ARM apps can be installed and run directly
 - **Browser Remote Control**: No client installation needed, open browser to control Android desktop
 - **Dual Screen Casting Modes**:
   - WebRTC casting (low latency, high framerate, recommended for LAN)
@@ -79,13 +80,46 @@ This application uses the following ports. Only 8443 is automatically reverse-pr
 > - The fnOS App Center `service_port` only declares 8443 for the unified gateway reverse proxy — it does not mean the app only listens on this one port.
 > - The webrtc container uses `host` network mode, so 3478 and 50000-50100 listen directly on the host, no Docker port mapping needed.
 > - ADB 5556 is forwarded by a host socat process to the Android container's port 5555 — not a Docker mapping.
-> - **ADB 5556 binds to 127.0.0.1 by default** (security: ADB has no password), accessible from the NAS itself only. To connect from another LAN device (e.g. your PC) via `adb connect <NAS_IP>:5556`, manually open it:
->   1. SSH into the NAS, edit `/var/apps/androidemu/var/ports.conf`, add or modify the line: `ADB_BIND=0.0.0.0`
->   2. Restart ADB forwarder: `pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install`
->   3. Verify: `ss -tlnp | grep 5556` should show `0.0.0.0:5556`
->   4. When done, change back to `ADB_BIND=127.0.0.1` to avoid leaving an unauthenticated port exposed
 > - 8443, 3478, and 50000-50100 work automatically on the LAN with no configuration.
 > - For external access: 8443 goes through a reverse proxy; if using WebRTC casting externally, port 3478 (TCP+UDP) must also be reachable, otherwise you get a black screen or endless loading.
+
+### How to Open ADB Port 5556
+
+ADB 5556 **binds to 127.0.0.1 by default** (security: ADB has no password), accessible from the NAS itself only. To connect from another LAN device (e.g. your PC), manually open it:
+
+**Step 1: SSH into the NAS and edit the config file**
+
+```bash
+vi /var/apps/androidemu/var/ports.conf
+```
+
+Add or modify the following line:
+
+```
+ADB_BIND=0.0.0.0
+```
+
+**Step 2: Restart the ADB forwarder**
+
+```bash
+pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
+```
+
+**Step 3: Verify the port is open**
+
+```bash
+ss -tlnp | grep 5556
+```
+
+It should show `0.0.0.0:5556`, meaning it's listening on all network interfaces.
+
+**Step 4: Connect from your PC**
+
+```bash
+adb connect <NAS_IP>:5556
+```
+
+> ⚠️ **Security note**: ADB has no password authentication. When done, change back to `ADB_BIND=127.0.0.1` and restart the forwarder to avoid leaving the port exposed.
 
 ---
 
@@ -186,8 +220,7 @@ Scrcpy screen service default login account:
 > Login state auto-injected when accessing via fnOS unified gateway, no manual input needed. Manual login required when directly accessing port 8443, please change password after login.
 
 ---
-
-## Quick Start (scrcpy-over-webrtc User Guide)
+## Quick Start (Cloud Phone Usage Guide)
 
 ### 1. Login
 
@@ -269,7 +302,22 @@ Left sidebar menu:
 - Supports upload to device, download from device, and delete files
 - 「Batch Install/Transfer」for sending APKs or files to multiple devices simultaneously
 
-### 8. Quick Reference
+### 8. Using the Mobile APP (Optional)
+
+Cloud Phone officially provides a standalone **Android APP client**, offering a better mobile experience than browser (true fullscreen, no address bar, background keep-alive).
+
+**Download and install:**
+1. Open https://webrtc-phone.com/#download in your phone browser
+2. Download `ScrcpyOverWebRTC-release.apk` and install it
+3. Open the APP, enter your access address in the address bar:
+   - LAN: `http://<NAS_IP>:8443`
+   - External: your fnOS remote domain or reverse proxy address
+4. Log in with default account `admin` / `admin123` (or your modified account)
+5. Tap a device to start screen mirroring and control
+
+> The APP and browser access the same server, with fully synchronized data and configuration. The APP's advantages are mobile-optimized UX and background keep-alive; core features are identical to the browser.
+
+### 9. Quick Reference
 
 | Action | Method |
 |--------|--------|
@@ -390,6 +438,63 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
                        │
                        ▼
                    Browser
+```
+
+---
+
+## Tech Stack & Translation Layers
+
+androidemu goes through **3 core translation/conversion layers** from hardware to browser display, plus 1 optional instruction-set translation layer:
+
+### Layer 1: Containerization Layer (Docker)
+
+- Not a full VM, but **process-level container isolation**. Android userspace runs directly on the host Linux kernel
+- Shares the same kernel with the host, **does not translate CPU instructions**, near-native performance
+- Provides filesystem, network, and process isolation; the Android container runs in `privileged` mode (required by upstream redroid for binder device access)
+
+### Layer 2: GPU Rendering Translation Layer
+
+| Mode | Scenario | Mechanism | FPS |
+|------|----------|-----------|-----|
+| GPU passthrough (guest) | X86 with iGPU/dGPU | Android OpenGL ES commands sent directly to host GPU driver, almost no translation overhead | 60fps |
+| Software rendering (swiftshader) | No GPU / ARM devices | **swiftshader** translates OpenGL ES into CPU instructions, with translation overhead | 30fps |
+
+- Install script automatically detects host GPU capability; uses GPU passthrough when `/dev/dri` exists, otherwise falls back to software rendering
+- ARM devices use software rendering (swiftshader) by default
+
+### Layer 3: Display Capture & Encoding Layer
+
+- **scrcpy** captures frames via Android's surfaceflinger
+- Encodes into **H.264** video stream (2-10Mbps bitrate, 960px long edge)
+- Transmits to browser via **WebRTC** (TURN/STUN relay + P2P)
+- Browser decodes and displays; audio is disabled (Opus encoder unstable in redroid container)
+
+### Layer 4: ABI Instruction-Set Translation Layer (libndk_translation, enabled by default)
+
+- redroid image ships with **libndk_translation** (Google's official NDK translation solution), implementing ARM-to-x86 binary translation via the Native Bridge mechanism
+- Verified config: `ro.dalvik.vm.native.bridge=libnb.so` (symlink to `libndk_translation.so`)
+- Supported ABIs: `x86_64, arm64-v8a, x86, armeabi-v7a, armeabi` (five architectures, ARM apps run directly)
+- Image does **not** include libhoudini (Intel solution) or QEMU translator (only related property files, not an actual translator)
+- X86 devices: Android x86_64 native + libndk_translation for ARM apps
+- ARM devices: Android arm64 native, no translation layer needed
+
+### Full Data Flow
+
+```
+User clicks in browser
+    │
+    ▼
+WebRTC receives H.264 ←── TURN/STUN relay ←── scrcpy encodes ←── surfaceflinger captures
+    │                                                          │
+    │                                                          ▼
+    │                                                   Android 12 (redroid)
+    │                                                          │
+    │                                                          ▼
+    │                                                   GPU Rendering Layer
+    │                                                   (GPU passthrough / swiftshader)
+    │                                                          │
+    ▼                                                          ▼
+Browser display ←──── fnOS Gateway ←──── Docker Container ←──── Host Linux Kernel
 ```
 
 ---

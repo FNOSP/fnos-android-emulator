@@ -27,6 +27,7 @@
 - [性能优化](#性能优化)
 - [串口控制台（开发者调试）](#串口控制台开发者调试)
 - [容器架构](#容器架构)
+- [技术栈与翻译层](#技术栈与翻译层)
 - [审核合规性说明](#审核合规性说明)
 - [常见问题](#常见问题)
 - [已知限制](#已知限制)
@@ -39,7 +40,7 @@
 
 ## 功能特性
 
-- **Android 12 系统**：x86_64 架构，内置 ARM 翻译层（libndk_translation），大多数 ARM 应用可直接安装运行
+- **Android 12 系统**：x86_64 架构，镜像默认内置 **libndk_translation**（Google 官方 NDK 翻译层）并已启用，支持 x86_64/arm64-v8a/x86/armeabi-v7a/armeabi 五种 ABI，大多数 ARM 应用可直接安装运行
 - **浏览器远程操控**：无需安装客户端，打开浏览器即可操控安卓桌面
 - **双投屏模式**：
   - WebRTC 投屏（低延迟、高帧率，局域网推荐）
@@ -97,13 +98,46 @@
 > - 飞牛应用中心的 `service_port` 仅声明 8443，用于统一网关反代，不代表软件只监听这一个端口。
 > - webrtc 容器使用 `host` 网络模式，3478 和 50000-50100 直接监听宿主机，无需 Docker 端口映射。
 > - ADB 5556 由宿主机 socat 进程转发到安卓容器的 5555，非 Docker 映射。
-> - **ADB 5556 默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS 本机可直接连接；如需从局域网其他设备（如电脑）执行 `adb connect <NAS_IP>:5556`，需手动开放：
->   1. SSH 登录 NAS，编辑 `/var/apps/androidemu/var/ports.conf`，添加或修改一行：`ADB_BIND=0.0.0.0`
->   2. 重启 ADB 转发：`pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install`
->   3. 验证：`ss -tlnp | grep 5556` 应显示 `0.0.0.0:5556`
->   4. 用完建议改回 `ADB_BIND=127.0.0.1`，避免无鉴权端口长期暴露
 > - 8443、3478、50000-50100 在局域网内自动可用，无需配置。
 > - 需要外网访问时，8443 走反向代理即可；WebRTC 投屏若在外网使用，必须同时让 3478（TCP+UDP）可达，否则会黑屏或一直转圈。
+
+### ADB 5556 端口开放方法
+
+ADB 5556 **默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS 本机可直接连接。如需从局域网其他设备（如电脑）连接，需手动开放：
+
+**第 1 步：SSH 登录 NAS，编辑配置文件**
+
+```bash
+vi /var/apps/androidemu/var/ports.conf
+```
+
+添加或修改以下内容：
+
+```
+ADB_BIND=0.0.0.0
+```
+
+**第 2 步：重启 ADB 转发进程**
+
+```bash
+pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
+```
+
+**第 3 步：验证端口是否开放**
+
+```bash
+ss -tlnp | grep 5556
+```
+
+应显示 `0.0.0.0:5556`，表示已监听所有网卡。
+
+**第 4 步：从电脑连接**
+
+```bash
+adb connect <NAS_IP>:5556
+```
+
+> ⚠️ **安全提醒**：ADB 无密码验证，用完后建议改回 `ADB_BIND=127.0.0.1` 并重启转发，避免端口长期暴露。
 
 ---
 
@@ -258,7 +292,7 @@ https://<NAS_IP>:8443
 3. 直接输入安卓 shell 命令，如：
    ```
    pm list packages          # 列出已安装应用
-   pm uninstall 包名          # 卸载应用
+   pm uninstall <包名>          # 卸载应用
    getprop sys.boot_completed # 查看安卓是否启动完成
    ```
 4. 也可以在外部用 `adb connect <NAS_IP>:5556` 连接
@@ -269,7 +303,22 @@ https://<NAS_IP>:8443
 - 支持上传文件到设备、从设备下载文件、删除文件
 - 「批量安装/传输」用于向多台设备同时下发APK或文件
 
-### 8. 常见操作速查
+### 8. 使用手机 APP 控制（可选）
+
+穿云投屏官方提供独立的 **Android APP 客户端**，手机端体验优于浏览器（真正全屏、无地址栏、后台保活）。
+
+**下载安装：**
+1. 手机浏览器访问 https://webrtc-phone.com/#download
+2. 下载 `ScrcpyOverWebRTC-release.apk` 并安装
+3. 打开 APP，在地址栏输入你的访问地址：
+   - 局域网：`http://<NAS_IP>:8443`
+   - 外网：你的飞牛远程域名或反向代理地址
+4. 使用默认账号 `admin` / `admin123` 登录（或你修改后的账号）
+5. 点击设备即可进入投屏控制
+
+> APP 与浏览器访问的是同一个服务端，数据和配置完全同步。APP 的优势在于移动端体验优化和后台保活，基础功能与浏览器一致。
+
+### 9. 常见操作速查
 
 | 操作 | 方法 |
 |------|------|
@@ -390,6 +439,63 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
                        │
                        ▼
                     浏览器
+```
+
+---
+
+## 技术栈与翻译层
+
+androidemu 从硬件到浏览器画面共经过 **3 个核心翻译/转换层**，另有 1 个可选的指令集翻译层：
+
+### 第 1 层：容器化层（Docker）
+
+- 不是全虚拟机，而是**进程级容器隔离**，Android 用户态直接运行在宿主 Linux 内核上
+- 与宿主共享同一个内核，**不翻译 CPU 指令**，性能接近原生
+- 提供文件系统、网络、进程隔离；安卓容器以 `privileged` 模式运行（redroid 上游官方要求，用于 binder 设备访问）
+
+### 第 2 层：GPU 渲染翻译层
+
+| 模式 | 适用场景 | 原理 | 帧率 |
+|------|----------|------|------|
+| GPU 直通（guest） | X86 有核显/独显 | Android 的 OpenGL ES 指令直接发给宿主 GPU 驱动，几乎无翻译开销 | 60fps |
+| 软件渲染（swiftshader） | 无 GPU / ARM 设备 | **swiftshader** 把 OpenGL ES 指令翻译成 CPU 指令执行，有翻译开销 | 30fps |
+
+- 安装脚本自动检测宿主 GPU 能力，有 `/dev/dri` 时用 GPU 直通，否则自动回退软件渲染
+- ARM 设备默认使用软件渲染（swiftshader）
+
+### 第 3 层：画面采集与编码层
+
+- **scrcpy** 通过 Android 的 surfaceflinger 采集画面帧
+- 编码成 **H.264** 视频流（码率 2-10Mbps，长边 960px）
+- 通过 **WebRTC**（TURN/STUN 中继 + P2P）传输到浏览器
+- 浏览器解码后显示，全程音频已禁用（redroid 容器内 Opus 编码器不稳定）
+
+### 第 4 层：ABI 指令集翻译层（libndk_translation，默认已启用）
+
+- redroid 镜像默认内置 **libndk_translation**（Google 官方 NDK 翻译方案），通过 Native Bridge 机制实现 ARM→x86 二进制翻译
+- 已验证配置：`ro.dalvik.vm.native.bridge=libnb.so`（符号链接指向 `libndk_translation.so`）
+- 支持 ABI：`x86_64, arm64-v8a, x86, armeabi-v7a, armeabi`（五种架构，ARM 应用可直接运行）
+- 镜像内**不包含** libhoudini（Intel 方案）和 QEMU translator（仅有相关属性文件，非实际翻译器）
+- X86 设备：Android x86_64 原生 + libndk_translation 翻译 ARM 应用
+- ARM 设备：Android arm64 原生运行，无需翻译层
+
+### 完整数据流
+
+```
+用户点击浏览器
+    │
+    ▼
+WebRTC 接收 H.264 流 ←── TURN/STUN 中继 ←── scrcpy 编码 ←── surfaceflinger 采集
+    │                                                          │
+    │                                                          ▼
+    │                                                   Android 12 (redroid)
+    │                                                          │
+    │                                                          ▼
+    │                                                   GPU 渲染翻译层
+    │                                                   (GPU直通 / swiftshader)
+    │                                                          │
+    ▼                                                          ▼
+浏览器显示 ←──── 飞牛统一网关 ←──── Docker 容器 ←──── 宿主 Linux 内核
 ```
 
 ---
