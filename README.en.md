@@ -288,11 +288,21 @@ Left sidebar menu:
 
 1. Click「Terminal」in the sidebar
 2. Select target device
-3. Enter Android shell commands directly:
+3. Enter Android shell commands directly. Common commands:
+
+   List installed apps:
    ```
-   pm list packages          # List installed apps
-   pm uninstall <package>    # Uninstall an app
-   getprop sys.boot_completed # Check if Android finished booting
+   pm list packages
+   ```
+
+   Uninstall an app (replace `<package>` with the actual package name):
+   ```
+   pm uninstall <package>
+   ```
+
+   Check if Android finished booting:
+   ```
+   getprop sys.boot_completed
    ```
 4. You can also connect externally with `adb connect <NAS_IP>:5556`
 
@@ -333,12 +343,27 @@ Cloud Phone officially provides a standalone **Android APP client**, offering a 
 
 ## ADB Connection
 
+> **Prerequisite**: ADB port 5556 binds to `127.0.0.1` by default. To connect from an external device like your PC, first open the port following "How to Open ADB Port 5556" above.
+
+**Step 1: Connect to the Android container**
+
+Replace `<NAS_IP>` with your NAS's actual LAN IP address:
+
 ```bash
 adb connect <NAS_IP>:5556
+```
+
+A successful connection shows `connected to <NAS_IP>:5556`.
+
+**Step 2: Enter Android shell**
+
+```bash
 adb shell
 ```
 
-Can also use Android shell directly in the "Terminal" of Scrcpy interface.
+Once inside, you can run Android commands (e.g. `pm list packages` to list installed apps).
+
+> You can also skip ADB and use Android shell directly in the "Terminal" of the Scrcpy interface.
 
 ---
 
@@ -601,11 +626,30 @@ A: When using WebSocket casting (LAN or external network), if "Connection failed
 
 ### Q: Container restarts repeatedly
 
-A: Common causes:
-- ARM device not enabled software rendering: check if compose has `androidboot.redroid_gpu_mode=guest`
-- Insufficient memory: recommend at least 2GB free memory
-- Check logs: `docker logs androidemu-android`
-- webrtc container restart: check for `nice: setpriority(-10): Permission denied`, confirm compose includes `cap_add: SYS_NICE`
+A: Common causes and troubleshooting:
+
+**1. Check Android container logs**
+
+```bash
+docker logs androidemu-android
+```
+
+**2. Identify cause by log keywords:**
+
+| Log keyword | Cause | Solution |
+|------------|-------|----------|
+| Errors related to `gpu`, `dri`, `SurfaceFlinger` | GPU passthrough failed | See GPU fix commands in "Android container memory very low" below |
+| `out of memory`, `lowmemory` | Insufficient RAM | Close other apps, keep at least 2GB free |
+| Errors related to `binder`, `binderfs` | binder driver missing | x86: install `binder_linux` driver from App Center first |
+
+**3. ARM device extra check:** Confirm compose has `androidboot.redroid_gpu_mode=guest` (software rendering), ARM devices usually have no GPU passthrough.
+
+**4. webrtc container restarts repeatedly:** Search logs for `nice: setpriority(-10): Permission denied`. If present, confirm compose includes `cap_add: SYS_NICE`.
+
+Check webrtc container logs:
+```bash
+docker logs androidemu-webrtc --tail 50
+```
 
 ### Q: Container is laggy, frozen, unresponsive to clicks or gestures
 
@@ -620,13 +664,20 @@ A: **v3.7.0+ users**: Open the app page. If the upstream service is temporarily 
 1. Close the app page (or browser tab), reopen it and try clicking/swiping again
 2. If still unresponsive, go to the app detail page in fnOS App Center, click "Stop", then "Start" again
 3. If only one container is laggy, find that container in Docker and click "Restart"
-4. Manually check health status:
+4. Manually check health status (run one by one):
+
+   Check if container is running:
    ```bash
-   # Check if container is running
    docker ps --filter name=androidemu
-   # Check if Android finished booting
+   ```
+
+   Check if Android finished booting:
+   ```bash
    docker exec androidemu-android getprop sys.boot_completed
-   # Check if killed by OOM
+   ```
+
+   Check if killed by OOM:
+   ```bash
    docker inspect -f '{{.State.OOMKilled}}' androidemu-android
    ```
 5. If none of the above works, please capture a screenshot or screen recording of the lag, and export the Docker container logs as a text file, then submit via any of the feedback channels below
@@ -654,23 +705,59 @@ docker logs androidemu-android --tail 80 2>&1 | grep -iE "error|fail|panic|binde
 | `out of memory`, `lowmemory` | Insufficient RAM | Close other apps, keep at least 2GB free |
 | `zygote` restarting | System service crash | Reinitialize data volume (wipes Android data): `docker compose -p androidemu down && docker volume rm androidemu-data && docker compose -p androidemu up -d` |
 
-**3. GPU fix (for graphical glitches or SurfaceFlinger crashes):**
+**3. GPU fix (for graphical glitches or SurfaceFlinger crashes, run in order):**
+
+Step 1: Fix GPU device permissions
 ```bash
 docker exec -u 0 androidemu-android chmod 666 /dev/dri/card0 /dev/dri/renderD128
+```
+
+Step 2: Restart screen service
+```bash
 docker exec -u 0 androidemu-android sh -c 'setprop ctl.restart surfaceflinger'
+```
+
+Step 3: Wait 60 seconds for service restart
+```bash
 sleep 60
+```
+
+Step 4: Confirm Android boot completed
+```bash
 docker exec androidemu-android getprop sys.boot_completed
 ```
 
-**4. Manual agent injection (when boot_completed=1 but device still offline):**
+**4. Manual agent injection (when boot_completed=1 but device still offline, run in order):**
+
+> Note: Replace `<NAS_IP>` with your NAS actual LAN IP; use `amd64` for x86 devices, `arm64` for ARM devices.
+
+Step 1: Extract agent from scrcpy-over-webrtc image (first time only)
 ```bash
-# Extract agent from scrcpy-over-webrtc image (first time only)
 docker run --rm -v /var/apps/androidemu/var/agent:/out --entrypoint /bin/sh docker.fnnas.com/buutuu/scrcpy-over-webrtc:latest -c "cp /app/agent_binaries/cloudphone-agent-amd64 /app/agent_binaries/libsys_core.so /out/ && chmod 755 /out/cloudphone-agent-amd64"
-# Inject and start (replace <NAS_IP> with your NAS LAN IP; use amd64 for x86, arm64 for ARM)
+```
+
+Step 2: Copy agent binary to Android container
+```bash
 docker cp /var/apps/androidemu/var/agent/cloudphone-agent-amd64 androidemu-android:/data/local/tmp/cloudphone-agent
+```
+
+Step 3: Copy dependency library to Android container
+```bash
 docker cp /var/apps/androidemu/var/agent/libsys_core.so androidemu-android:/data/local/tmp/libsys_core.so
+```
+
+Step 4: Inject and start agent (replace `<NAS_IP>` with your NAS LAN IP)
+```bash
 docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling wss://<NAS_IP>:8443/register_agent -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=udp,turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=tcp,stun:<NAS_IP>:3478' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
+```
+
+Step 5: Wait 3 seconds
+```bash
 sleep 3
+```
+
+Step 6: Confirm agent is running (returns PID means success)
+```bash
 docker exec androidemu-android pidof cloudphone-agent
 ```
 
@@ -678,26 +765,55 @@ docker exec androidemu-android pidof cloudphone-agent
 
 A: The most common cause is `PUBLIC_IP` being reset to `127.0.0.1` (after container recreation, the compose default takes effect), so the TURN relay address handed to clients is `127.0.0.1`, which clients cannot reach.
 
-**Diagnostic commands:**
+**Diagnostic commands (run one by one to check results):**
+
+Check PUBLIC_IP configuration:
 ```bash
-echo "===== PUBLIC_IP ====="
 docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
-echo "===== agent running? ====="
+```
+
+Check if agent is running:
+```bash
 docker exec androidemu-android pidof cloudphone-agent || echo "agent not running"
-echo "===== agent log (last 20 lines) ====="
+```
+
+Check agent log (last 20 lines):
+```bash
 docker exec androidemu-android tail -20 /data/local/tmp/agent.log 2>/dev/null
-echo "===== webrtc container log ====="
+```
+
+Check errors in webrtc container log:
+```bash
 docker logs androidemu-webrtc --tail 40 2>&1 | grep -iE 'relay addr|allocation|error|fail|Unauthorized' | tail -15
 ```
 
-**Fix (when PUBLIC_IP=127.0.0.1, replace <NAS_IP> with your NAS LAN IP):**
+**Fix (when PUBLIC_IP=127.0.0.1, run in order, replace `<NAS_IP>` with your NAS LAN IP):**
+
+Step 1: Enter docker config directory
 ```bash
 cd /var/apps/androidemu/target/docker
+```
+
+Step 2: Replace PUBLIC_IP (replace `<NAS_IP>` with your NAS LAN IP)
+```bash
 sed -i 's/PUBLIC_IP=127\.0\.0\.1/PUBLIC_IP=<NAS_IP>/g' docker-compose.yaml
+```
+
+Step 3: Recreate webrtc container
+```bash
 docker compose -p androidemu up -d --force-recreate webrtc
+```
+
+Step 4: Wait 10 seconds
+```bash
 sleep 10
+```
+
+Step 5: Confirm PUBLIC_IP updated
+```bash
 docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
 ```
+
 After confirming `PUBLIC_IP` is your LAN IP, reopen the cloud phone page to connect.
 
 ### Q: No sound
@@ -720,14 +836,18 @@ A: Audit log function depends on Scrcpy backend `/api/audit` endpoint, some vers
 
 A: The "Remove" button only removes the file from the current install task — it does **not** delete the file from the cloud file center. Files are stored in the webrtc container at `/app/data/downloads/`. Delete them from the container:
 
+Step 1: List uploaded files
 ```bash
-# 1. List uploaded files
 docker exec androidemu-webrtc ls -la /app/data/downloads/
+```
 
-# 2. Delete all APKs (or specify a filename to delete one)
+Step 2: Delete all APKs (or specify a filename to delete one)
+```bash
 docker exec -u 0 androidemu-webrtc rm -f /app/data/downloads/*.apk
+```
 
-# 3. Clear file metadata (otherwise the dropdown still shows filenames)
+Step 3: Clear file metadata (otherwise the dropdown still shows filenames)
+```bash
 docker exec androidemu-webrtc sh -c 'echo "{}" > /app/data/files_meta.json'
 ```
 
@@ -743,8 +863,13 @@ docker volume rm androidemu_data androidemu-webrtc-data
 ### Q: Can't reinstall after cancelling installation/update midway
 
 A: Fixed in v3.6.0+, auto-cleans temporary data on interruption. If using old version and encountering this, manually clean:
+Step 1: Clean temporary files
 ```bash
 rm -rf /tmp/androidemu_*
+```
+
+Step 2: Remove leftover containers
+```bash
 docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 ```
 

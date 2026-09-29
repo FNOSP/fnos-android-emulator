@@ -289,11 +289,21 @@ https://<NAS_IP>:8443
 
 1. 点击左侧「终端」
 2. 选择目标设备
-3. 直接输入安卓 shell 命令，如：
+3. 直接输入安卓 shell 命令，常用命令：
+
+   列出已安装应用：
    ```
-   pm list packages          # 列出已安装应用
-   pm uninstall <包名>          # 卸载应用
-   getprop sys.boot_completed # 查看安卓是否启动完成
+   pm list packages
+   ```
+
+   卸载应用（将 `<包名>` 替换为实际包名）：
+   ```
+   pm uninstall <包名>
+   ```
+
+   查看安卓是否启动完成：
+   ```
+   getprop sys.boot_completed
    ```
 4. 也可以在外部用 `adb connect <NAS_IP>:5556` 连接
 
@@ -334,12 +344,27 @@ https://<NAS_IP>:8443
 
 ## ADB 连接
 
+> **前提**：ADB 5556 端口默认仅监听 `127.0.0.1`，如需从电脑等外部设备连接，请先按上文「ADB 5556 端口开放方法」开放端口。
+
+**第 1 步：连接安卓容器**
+
+将 `<NAS_IP>` 替换为你的 NAS 实际局域网 IP 地址：
+
 ```bash
 adb connect <NAS_IP>:5556
+```
+
+连接成功会显示 `connected to <NAS_IP>:5556`。
+
+**第 2 步：进入安卓 shell**
+
+```bash
 adb shell
 ```
 
-也可以在穿云投屏界面的「终端」中直接使用安卓 shell。
+进入后即可执行安卓命令（如 `pm list packages` 查看已安装应用）。
+
+> 也可以不连 ADB，直接在穿云投屏界面的「终端」中使用安卓 shell。
 
 ---
 
@@ -396,16 +421,31 @@ webrtc 信令服务和 TURN 中继服务均以 `nice=-10` 启动（高于默认�
 
 串口控制台默认关闭以减少性能损耗。如需开启用于调试：
 
+**第 1 步：开启串口控制台**（临时开启，容器重启后失效）
+
 ```bash
-# 临时开启（容器重启后失效）
 docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 1
+```
+
+```bash
 docker exec -u 0 androidemu-android start console
+```
 
-# 查看控制台输出
+**第 2 步：查看控制台输出**
+
+```bash
 docker exec -u 0 androidemu-android dmesg -w
+```
 
-# 关闭
+> 按 `Ctrl+C` 退出实时日志查看。
+
+**第 3 步：调试完成后关闭**
+
+```bash
 docker exec -u 0 androidemu-android stop console
+```
+
+```bash
 docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 ```
 
@@ -602,11 +642,30 @@ A: 使用WebSocket投屏（局域网或外网环境）时，若出现「连接�
 
 ### Q: 容器反复重启
 
-A: 常见原因：
-- ARM 设备未启用软件渲染：检查 compose 中是否有 `androidboot.redroid_gpu_mode=guest`
-- 内存不足：建议至少 2GB 可用内存
-- 查看日志：`docker logs androidemu-android`
-- webrtc 容器重启：检查是否有 `nice: setpriority(-10): Permission denied`，确认 compose 中包含 `cap_add: SYS_NICE`
+A: 常见原因及排查：
+
+**1. 查看安卓容器日志**
+
+```bash
+docker logs androidemu-android
+```
+
+**2. 根据日志关键词判断原因：**
+
+| 日志关键词 | 原因 | 解决方法 |
+|-----------|------|---------|
+| 与 `gpu`、`dri`、`SurfaceFlinger` 相关的报错 | GPU 直通失败 | 见下文「安卓容器内存很低」中的 GPU 修复命令 |
+| `out of memory`、`lowmemory` | 内存不足 | 关闭其他应用，至少保留 2GB 可用内存 |
+| `binder`、`binderfs` 相关报错 | binder 驱动缺失 | x86 设备先在应用中心安装 `binder_linux` 驱动 |
+
+**3. ARM 设备额外检查：** 确认 compose 中包含 `androidboot.redroid_gpu_mode=guest`（软件渲染），ARM 设备通常无 GPU 直通。
+
+**4. webrtc 容器反复重启：** 在日志中搜索是否有 `nice: setpriority(-10): Permission denied`，如果有，确认 compose 中包含 `cap_add: SYS_NICE`。
+
+查看 webrtc 容器日志：
+```bash
+docker logs androidemu-webrtc --tail 50
+```
 
 ### Q: 容器卡顿、无法点击或移动、一动不动
 
@@ -621,13 +680,20 @@ A: **v3.7.0+ 用户**：打开应用页面，如果上游服务暂时不可用�
 1. 先关闭软件页面（或网页），重新打开后再尝试点击/移动
 2. 若仍无效，在飞牛应用中心的软件详情页点击「停用」，停用后再「启用」
 3. 如果只有单个容器出现卡顿，可在 Docker 中找到对应容器点击「重启」即可
-4. 手动检查健康状态：
+4. 手动检查健康状态（逐条执行）：
+
+   查看容器是否在运行：
    ```bash
-   # 查看容器是否在运行
    docker ps --filter name=androidemu
-   # 查看安卓是否启动完成
+   ```
+
+   查看安卓是否启动完成：
+   ```bash
    docker exec androidemu-android getprop sys.boot_completed
-   # 查看是否被OOM杀死
+   ```
+
+   查看是否被OOM杀死：
+   ```bash
    docker inspect -f '{{.State.OOMKilled}}' androidemu-android
    ```
 5. 若以上方法均无效，请将软件卡顿的截图或录屏，以及 Docker 容器中复制的日志打包为文本文档，通过下方反馈渠道任选一项进行反馈
@@ -655,23 +721,59 @@ docker logs androidemu-android --tail 80 2>&1 | grep -iE "error|fail|panic|binde
 | `out of memory`、`lowmemory` | 内存不足 | 关闭其他应用，至少保留 2GB 可用内存 |
 | `zygote` 反复重启 | 系统服务崩溃 | 删除数据卷重新初始化（会清空安卓数据）：`docker compose -p androidemu down && docker volume rm androidemu-data && docker compose -p androidemu up -d` |
 
-**3. GPU 修复命令（画面异常或 SurfaceFlinger 崩溃时用）：**
+**3. GPU 修复命令（画面异常或 SurfaceFlinger 崩溃时用，按顺序执行）：**
+
+第 1 步：修复 GPU 设备权限
 ```bash
 docker exec -u 0 androidemu-android chmod 666 /dev/dri/card0 /dev/dri/renderD128
+```
+
+第 2 步：重启画面服务
+```bash
 docker exec -u 0 androidemu-android sh -c 'setprop ctl.restart surfaceflinger'
+```
+
+第 3 步：等待 60 秒让服务重启完成
+```bash
 sleep 60
+```
+
+第 4 步：确认安卓启动完成
+```bash
 docker exec androidemu-android getprop sys.boot_completed
 ```
 
-**4. 手动注入 agent（boot_completed=1 但设备仍不在线时用）：**
+**4. 手动注入 agent（boot_completed=1 但设备仍不在线时用，按顺序执行）：**
+
+> 注意：以下命令中的 `<NAS_IP>` 需替换为你的 NAS 实际局域网 IP；x86 设备用 `amd64`，ARM 设备用 `arm64`。
+
+第 1 步：从穿云投屏镜像取出 agent（首次需要）
 ```bash
-# 从穿云投屏镜像取出 agent（首次需要）
 docker run --rm -v /var/apps/androidemu/var/agent:/out --entrypoint /bin/sh docker.fnnas.com/buutuu/scrcpy-over-webrtc:latest -c "cp /app/agent_binaries/cloudphone-agent-amd64 /app/agent_binaries/libsys_core.so /out/ && chmod 755 /out/cloudphone-agent-amd64"
-# 注入并启动（将 <NAS_IP> 替换为你的 NAS 局域网 IP；x86 用 amd64，ARM 用 arm64）
+```
+
+第 2 步：复制 agent 二进制到安卓容器
+```bash
 docker cp /var/apps/androidemu/var/agent/cloudphone-agent-amd64 androidemu-android:/data/local/tmp/cloudphone-agent
+```
+
+第 3 步：复制依赖库到安卓容器
+```bash
 docker cp /var/apps/androidemu/var/agent/libsys_core.so androidemu-android:/data/local/tmp/libsys_core.so
+```
+
+第 4 步：注入并启动 agent（将 `<NAS_IP>` 替换为你的 NAS 局域网 IP）
+```bash
 docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling wss://<NAS_IP>:8443/register_agent -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=udp,turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=tcp,stun:<NAS_IP>:3478' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
+```
+
+第 5 步：等待 3 秒
+```bash
 sleep 3
+```
+
+第 6 步：确认 agent 已运行（返回进程号即成功）
+```bash
 docker exec androidemu-android pidof cloudphone-agent
 ```
 
@@ -679,26 +781,55 @@ docker exec androidemu-android pidof cloudphone-agent
 
 A: 最常见原因是 `PUBLIC_IP` 被重置为 `127.0.0.1`（重建容器后 compose 默认值生效），导致 TURN 分发给客户端的中继地址是 `127.0.0.1`，客户端连不上。
 
-**诊断命令：**
+**诊断命令（逐条执行查看结果）：**
+
+查看 PUBLIC_IP 配置：
 ```bash
-echo "===== PUBLIC_IP ====="
 docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
-echo "===== agent 是否运行 ====="
+```
+
+查看 agent 是否运行：
+```bash
 docker exec androidemu-android pidof cloudphone-agent || echo "agent 未运行"
-echo "===== agent 日志最后20行 ====="
+```
+
+查看 agent 日志最后20行：
+```bash
 docker exec androidemu-android tail -20 /data/local/tmp/agent.log 2>/dev/null
-echo "===== webrtc 容器日志 ====="
+```
+
+查看 webrtc 容器日志中的错误：
+```bash
 docker logs androidemu-webrtc --tail 40 2>&1 | grep -iE 'relay addr|allocation|error|fail|Unauthorized' | tail -15
 ```
 
-**修复命令（确认 PUBLIC_IP=127.0.0.1 时用，将 <NAS_IP> 替换为你的 NAS 局域网 IP）：**
+**修复命令（确认 PUBLIC_IP=127.0.0.1 时用，按顺序执行，将 `<NAS_IP>` 替换为你的 NAS 局域网 IP）：**
+
+第 1 步：进入 docker 配置目录
 ```bash
 cd /var/apps/androidemu/target/docker
+```
+
+第 2 步：替换 PUBLIC_IP（将 `<NAS_IP>` 替换为你的 NAS 局域网 IP）
+```bash
 sed -i 's/PUBLIC_IP=127\.0\.0\.1/PUBLIC_IP=<NAS_IP>/g' docker-compose.yaml
+```
+
+第 3 步：重建 webrtc 容器
+```bash
 docker compose -p androidemu up -d --force-recreate webrtc
+```
+
+第 4 步：等待 10 秒
+```bash
 sleep 10
+```
+
+第 5 步：确认 PUBLIC_IP 已更新
+```bash
 docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{end}}' | grep PUBLIC_IP
 ```
+
 确认 `PUBLIC_IP` 为你的局域网 IP 后，重新打开云手机画面页面连接。
 
 ### Q: 没有声音
@@ -721,14 +852,18 @@ A: 审计日志功能依赖穿云投屏后端的 `/api/audit` 接口，部分版
 
 A: 界面上的「移除」只是从当前安装任务里去掉，**不会删除云端文件中心的文件**。文件实际存在穿云投屏容器的 `/app/data/downloads/` 目录里，需要进容器删除：
 
+第 1 步：查看已上传的文件
 ```bash
-# 1. 查看已上传的文件
 docker exec androidemu-webrtc ls -la /app/data/downloads/
+```
 
-# 2. 删除所有APK（也可以指定文件名删除单个）
+第 2 步：删除所有APK（也可以指定文件名删除单个）
+```bash
 docker exec -u 0 androidemu-webrtc rm -f /app/data/downloads/*.apk
+```
 
-# 3. 清空文件元数据记录（否则下拉框还会显示文件名）
+第 3 步：清空文件元数据记录（否则下拉框还会显示文件名）
+```bash
 docker exec androidemu-webrtc sh -c 'echo "{}" > /app/data/files_meta.json'
 ```
 
@@ -744,8 +879,13 @@ docker volume rm androidemu_data androidemu-webrtc-data
 ### Q: 安装/更新中途取消后无法重新安装
 
 A: v3.6.0+ 已修复，安装/更新中途取消会自动清理临时数据。若使用旧版本遇到此问题，手动清理：
+第 1 步：清理临时文件
 ```bash
 rm -rf /tmp/androidemu_*
+```
+
+第 2 步：删除残留容器
+```bash
 docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 ```
 
