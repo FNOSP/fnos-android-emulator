@@ -108,7 +108,7 @@ ADB 5556 **默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS �
 **第 1 步：SSH 登录 NAS，编辑配置文件**
 
 ```bash
-vi /var/apps/androidemu/var/ports.conf
+nano /var/apps/androidemu/var/ports.conf
 ```
 
 添加或修改以下内容：
@@ -117,16 +117,18 @@ vi /var/apps/androidemu/var/ports.conf
 ADB_BIND=0.0.0.0
 ```
 
+> nano 操作：按 `Ctrl+O` 保存，按 `回车` 确认文件名，按 `Ctrl+X` 退出。
+
 **第 2 步：重启 ADB 转发进程**
 
 ```bash
-pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
+sudo pkill -f redroid_adb_forward.sh && sudo bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
 ```
 
 **第 3 步：验证端口是否开放**
 
 ```bash
-ss -tlnp | grep 5556
+ss -tln | grep 5556
 ```
 
 应显示 `0.0.0.0:5556`，表示已监听所有网卡。

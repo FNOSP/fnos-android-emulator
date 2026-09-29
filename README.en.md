@@ -90,7 +90,7 @@ ADB 5556 **binds to 127.0.0.1 by default** (security: ADB has no password), acce
 **Step 1: SSH into the NAS and edit the config file**
 
 ```bash
-vi /var/apps/androidemu/var/ports.conf
+nano /var/apps/androidemu/var/ports.conf
 ```
 
 Add or modify the following line:
@@ -99,16 +99,18 @@ Add or modify the following line:
 ADB_BIND=0.0.0.0
 ```
 
+> nano controls: press `Ctrl+O` to save, press `Enter` to confirm filename, press `Ctrl+X` to exit.
+
 **Step 2: Restart the ADB forwarder**
 
 ```bash
-pkill -f redroid_adb_forward.sh && bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
+sudo pkill -f redroid_adb_forward.sh && sudo bash /vol1/@appcenter/androidemu/scripts/redroid_adb_forward.sh install
 ```
 
 **Step 3: Verify the port is open**
 
 ```bash
-ss -tlnp | grep 5556
+ss -tln | grep 5556
 ```
 
 It should show `0.0.0.0:5556`, meaning it's listening on all network interfaces.
