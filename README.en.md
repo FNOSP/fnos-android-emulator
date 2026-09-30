@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.7.0-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.7.5-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -490,7 +490,7 @@ androidemu goes through **3 core translation/conversion layers** from hardware t
 - **scrcpy** captures frames via Android's surfaceflinger
 - Encodes into **H.264** video stream (2-10Mbps bitrate, 960px long edge)
 - Transmits to browser via **WebRTC** (TURN/STUN relay + P2P)
-- Browser decodes and displays; **audio is enabled** (3.7.3+ fix: enable Codec2 framework to load c2.android.opus.encoder software encoder)
+- Browser decodes and displays; **audio is enabled** (3.7.5+ fix: enable Codec2 framework to load c2.android.opus.encoder software encoder)
 
 ### Layer 4: ABI Instruction-Set Translation Layer (libndk_translation, enabled by default)
 
@@ -1003,7 +1003,7 @@ Key technical conclusions verified during development, for secondary development
 If you find this app useful or are satisfied with the publisher, please consider supporting via donation to help the publisher and other contributors continue maintaining the app. Any amount or no donation is appreciated; please note "donation" in payment remarks, thanks.
 Or give a star to support the project.
 
-> Note: Above donation codes only for this project's maintenance and development support, please do not misappropriate or use for other purposes, thanks for understanding.
+> Note: Above donation codes are only for this project's maintenance and development support, please do not misappropriate or use for other purposes, thanks for understanding.
 
 ---
 
