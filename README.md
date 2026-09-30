@@ -599,6 +599,48 @@ A: 优先检查 **binder 驱动**是否已安装：
 
 若已安装驱动（或 ARM 设备本身支持）但仍弹出此错误，请务必通过下方「问题反馈」章节中的任一链接反馈，以便排查具体原因。
 
+### Q: 安装后打不开，页面显示 400 错误（可能多个应用同时出现）
+
+A: 这是飞牛系统 nginx 网关的请求头大小限制导致的，**不是本应用的问题**。
+
+**原因**：飞牛 nginx 默认 `large_client_header_buffers 4 8k`，当浏览器 cookie 过大（飞牛网关注入的 `fnos-token`、`osrt` 等 cookie 累计超过 8KB）时，nginx 会直接返回 400。此问题会同时影响所有走飞牛网关的应用（如 gxsales、hddlocator 等），清除浏览器缓存后短暂恢复，但重新登录后 cookie 又会变大。
+
+**解决方案 A（推荐，立即可用）：绕开飞牛 nginx，直接访问端口**
+
+局域网内直接访问：
+```
+http://<NAS_IP>:8443
+```
+
+或通过自己的反向代理（如 Lucky、Nginx Proxy Manager）访问，不经过飞牛网关。
+
+**解决方案 B（根治）：修改飞牛 nginx 配置，增大请求头缓冲区**
+
+> 需要 SSH 登录 NAS 并具有 root 权限，修改前请备份配置文件。
+
+第 1 步：备份 nginx 配置
+```bash
+sudo cp /usr/trim/nginx/conf/nginx.conf /usr/trim/nginx/conf/nginx.conf.bak
+```
+
+第 2 步：编辑配置文件
+```bash
+sudo nano /usr/trim/nginx/conf/nginx.conf
+```
+
+在 `http {}` 块中添加以下两行：
+```
+client_header_buffer_size 16k;
+large_client_header_buffers 4 32k;
+```
+
+第 3 步：测试配置并重新加载
+```bash
+sudo nginx -t && sudo nginx -s reload
+```
+
+> 注意：飞牛系统更新可能会覆盖 nginx 配置，若更新后问题复现，重新添加即可。
+
 ### Q: 打开后显示「未授权」或「0 台在线」
 
 A: 这是穿云投屏的 License 授权提示。新安装的设备目前有 20 台设备三个月免费试用期（自 2026 年 11 月 1 日，到期为 10 台设备，其他基础功能均为免费），等待容器完全启动（约 1-2 分钟）后刷新页面即可。若持续未授权，请检查容器是否正常运行：
@@ -928,7 +970,6 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 ---
 
 ## 对发布者和其他贡献者的支持
-
 <img width="4096" height="2926" alt="a61d0506ea65c87e4dd005f21325eda6" src="https://github.com/user-attachments/assets/1ad0e1e8-e03e-4966-a94d-24dff71981ba" />
 
 如果你觉得这个软件很好或者对发布者本身感到满意的，希望能赞赏多多支持一下，让发布者和其他贡献者得以继续维护软件，无论赞赏多少或者是不赞赏，都在此感谢；在支付的时候请在备注上标注赞赏，感谢。

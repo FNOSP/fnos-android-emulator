@@ -583,6 +583,48 @@ A: First check if the **binder driver** is installed:
 
 If the driver is already installed (or the ARM device natively supports it) but this error still appears, please feedback via any link in the "Feedback Links & Channels" section below so we can investigate the specific cause.
 
+### Q: Can't open after installation, page shows 400 error (may affect multiple apps simultaneously)
+
+A: This is caused by the request header size limit of fnOS nginx gateway, **not an issue with this app**.
+
+**Cause**: fnOS nginx defaults to `large_client_header_buffers 4 8k`. When browser cookies are too large (cumulative cookies injected by fnOS gateway such as `fnos-token`, `osrt`, etc. exceed 8KB), nginx directly returns 400. This issue affects all apps going through the fnOS gateway simultaneously (such as gxsales, hddlocator, etc.). Clearing browser cache temporarily fixes it, but cookies grow again after re-login.
+
+**Solution A (recommended, works immediately): Bypass fnOS nginx, access port directly**
+
+Access directly within LAN:
+```
+http://<NAS_IP>:8443
+```
+
+Or access through your own reverse proxy (e.g. Lucky, Nginx Proxy Manager), bypassing the fnOS gateway.
+
+**Solution B (permanent fix): Modify fnOS nginx config to increase header buffer size**
+
+> Requires SSH login to NAS with root permission. Backup config file before modifying.
+
+Step 1: Backup nginx config
+```bash
+sudo cp /usr/trim/nginx/conf/nginx.conf /usr/trim/nginx/conf/nginx.conf.bak
+```
+
+Step 2: Edit config file
+```bash
+sudo nano /usr/trim/nginx/conf/nginx.conf
+```
+
+Add the following two lines inside the `http {}` block:
+```
+client_header_buffer_size 16k;
+large_client_header_buffers 4 32k;
+```
+
+Step 3: Test config and reload
+```bash
+sudo nginx -t && sudo nginx -s reload
+```
+
+> Note: fnOS system updates may overwrite nginx config. If the issue reappears after an update, re-add the lines.
+
 ### Q: Shows "Unauthorized" or "0 devices online" after opening
 
 A: This is Scrcpy License authorization prompt. Newly installed devices currently have 20 devices 3-month free trial (from Nov 1, 2026, expires to 10 devices, other basic features all free). Wait for container to fully start (~1-2 minutes) then refresh page. If still unauthorized, check if container is running:
@@ -912,7 +954,6 @@ Key technical conclusions verified during development, for secondary development
 ---
 
 ## Support the Publisher & Contributors
-
 <img width="4096" height="2926" alt="a61d0506ea65c87e4dd005f21325eda6" src="https://github.com/user-attachments/assets/1ad0e1e8-e03e-4966-a94d-24dff71981ba" />
 
 If you find this app useful or are satisfied with the publisher, please consider supporting via donation to help the publisher and other contributors continue maintaining the app. Any amount or no donation is appreciated; please note "donation" in payment remarks, thanks.
