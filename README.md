@@ -506,7 +506,7 @@ androidemu 从硬件到浏览器画面共经过 **3 个核心翻译/转换层**�
 - **scrcpy** 通过 Android 的 surfaceflinger 采集画面帧
 - 编码成 **H.264** 视频流（码率 2-10Mbps，长边 960px）
 - 通过 **WebRTC**（TURN/STUN 中继 + P2P）传输到浏览器
-- 浏览器解码后显示，全程音频已禁用（redroid 容器内 Opus 编码器不稳定）
+- 浏览器解码后显示，**音频已启用**（3.7.3+ 修复：通过启用 Codec2 框架加载 c2.android.opus.encoder 软件编码器）
 
 ### 第 4 层：ABI 指令集翻译层（libndk_translation，默认已启用）
 
@@ -902,9 +902,24 @@ docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{e
 
 确认 `PUBLIC_IP` 为你的局域网 IP 后，重新打开云手机画面页面连接。
 
-### Q: 没有声音
+### Q: 没有声音 / 声音很小
 
-A: 当前版本默认禁用音频（redroid 容器内的 opus 编码器为 Codec2 版本，scrcpy-server 只识别 OMX 版本，开启音频会导致 `createEncoder` 失败并断流）。已通过 RUNTIME_SHIM 劫持 WebSocket.send 和 gateway 拦截 `/api/default_settings` 双重保障禁用音频。后续版本将尝试修复。
+A: **3.7.3+ 版本已修复音频功能**，默认启用 Opus 软件编码器。如仍无声音，请检查以下两点：
+
+1. **连接设置中需手动开启音频**：
+   - 电脑端（飞牛 Web 界面）：在穿云投屏的连接设置中勾选「音频」选项
+   - 手机端（穿云投屏 APP）：音频流透传，无需额外设置，确保 APP 版本支持音频
+2. **音量与宿主系统音量联动**：
+   - 最终音量 = 容器内音量 × 飞牛 OS 系统音量
+   - 例如：容器内设 100%，但飞牛 OS 系统音量只设 50%，实际输出按 50% 计算
+   - 请同时检查容器内媒体音量和飞牛 OS 的系统音量
+
+3. **使用第三方控制/连接软件时**：
+   - 如果使用穿云投屏以外的软件（如 scrcpy、QtScrcpy、ADB 远程控制等）连接，请务必在该软件的设置中**关闭或禁用音频**，或根据软件说明正确配置音频
+   - 第三方软件可能不兼容穿云投屏的 Opus 音频流协议，强行开启可能导致连接失败或无声
+   - 穿云投屏 APP 和飞牛 Web 界面已内置音频支持，推荐使用官方客户端
+
+> 技术说明：redroid 镜像默认 `debug.stagefright.ccodec=0` 禁用了 Codec2 框架，导致 opus 编码器不加载。3.7.3 通过 `audio_fix.py` 守护进程自动设置 `debug.stagefright.ccodec=1` 启用 Codec2，容器重启后自动补回。
 
 ### Q: 外网访问画面卡顿
 
@@ -979,7 +994,7 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 
 ## 已知限制
 
-1. **音频**：当前版本默认禁用音频，开启会导致断流
+1. **音频**：3.7.3+ 已启用音频（Codec2 Opus 软件编码器），需在连接设置中手动开启
 2. **外网访问**：飞牛反向代理只透传 TCP，WebRTC 媒体流（UDP）无法通过，自动降级为 WebSocket 投屏
 3. **飞牛 APP**：部分版本 WebView 对 WebSocket 代理支持有限，建议用手机浏览器
 4. **ARM 应用兼容性**：强依赖谷歌服务或含反模拟器检测的 ARM64 应用可能闪退

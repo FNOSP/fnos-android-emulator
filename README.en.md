@@ -490,7 +490,7 @@ androidemu goes through **3 core translation/conversion layers** from hardware t
 - **scrcpy** captures frames via Android's surfaceflinger
 - Encodes into **H.264** video stream (2-10Mbps bitrate, 960px long edge)
 - Transmits to browser via **WebRTC** (TURN/STUN relay + P2P)
-- Browser decodes and displays; audio is disabled (Opus encoder unstable in redroid container)
+- Browser decodes and displays; **audio is enabled** (3.7.3+ fix: enable Codec2 framework to load c2.android.opus.encoder software encoder)
 
 ### Layer 4: ABI Instruction-Set Translation Layer (libndk_translation, enabled by default)
 
@@ -886,9 +886,23 @@ docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{e
 
 After confirming `PUBLIC_IP` is your LAN IP, reopen the cloud phone page to connect.
 
-### Q: No sound
+### Q: No sound / Low volume
 
-A: Current version disables audio by default (opus encoder in redroid container is Codec2 version, scrcpy-server only recognizes OMX version, enabling audio causes `createEncoder` failure and stream disconnect). Dual protection via RUNTIME_SHIM hijacking WebSocket.send and gateway intercepting `/api/default_settings`. Future versions will attempt fix.
+A: **Audio is fixed in version 3.7.3+**, Opus software encoder is enabled by default. If still no sound, please check the following points:
+
+1. **Manually enable audio in connection settings**:
+   - Desktop (fnOS Web interface): Check the "Audio" option in CloudPhone connection settings
+   - Mobile (CloudPhone APP): Audio stream is pass-through, no additional setup needed; ensure APP version supports audio
+2. **Volume is linked with host system volume**:
+   - Final volume = in-container volume × host system volume
+   - Example: container set to 100%, but host system volume only at 50%, actual output is 50%
+   - Please check both in-container media volume and host system volume
+3. **When using third-party control/connection software**:
+   - If using software other than CloudPhone (such as scrcpy, QtScrcpy, ADB remote control, etc.), be sure to **disable audio** in that software's settings, or configure audio correctly according to the software's instructions
+   - Third-party software may not be compatible with CloudPhone's Opus audio stream protocol; forcing audio on may cause connection failure or no sound
+   - CloudPhone APP and fnOS Web interface have built-in audio support; official clients are recommended
+
+> Technical note: redroid image defaults to `debug.stagefright.ccodec=0` which disables the Codec2 framework, causing opus encoder not to load. Version 3.7.3 uses `audio_fix.py` watchdog to automatically set `debug.stagefright.ccodec=1` to enable Codec2, and auto-restores after container reboot.
 
 ### Q: External network screen laggy
 
@@ -963,7 +977,7 @@ Key technical conclusions verified during development, for secondary development
 
 ## Known Limitations
 
-1. **Audio**: Current version disables audio by default, enabling causes stream disconnect
+1. **Audio**: Enabled in 3.7.3+ (Codec2 Opus software encoder), need to manually enable in connection settings
 2. **External network access**: fnOS reverse proxy only passes TCP, WebRTC media stream (UDP) can't pass, auto-downgrades to WebSocket casting
 3. **fnOS APP**: Some versions WebView has limited WebSocket proxy support, recommend mobile browser
 4. **ARM app compatibility**: ARM64 apps strongly dependent on Google services or with anti-emulator detection may crash
