@@ -625,6 +625,36 @@ sudo nginx -t && sudo nginx -s reload
 
 > Note: fnOS system updates may overwrite nginx config. If the issue reappears after an update, re-add the lines.
 
+### Q: Shows "Bad Gateway" (502 error) after opening
+
+A: This is the default prompt from fnOS nginx gateway when it can't reach the backend service, **not an error page from this app**.
+
+**Most common cause: Just installed/just started, backend service not ready yet**
+
+The Android container takes 1-2 minutes on first boot (pulling image, initializing, starting system services). During this time gateway.py or the webrtc container is not ready yet, and fnOS gateway directly returns 502. **Wait 1-2 minutes then refresh the page.**
+
+**By version:**
+
+- **v3.6.8 and below**: Showing plain text "Bad Gateway" is normal. Older versions don't have a friendly status page, this is what you see when upstream is not ready. Refresh after the container finishes starting.
+- **v3.7.0 and above**: Normally shows a friendly status page (with container status table and refresh button) when upstream is not ready. If you still see plain text "Bad Gateway", it means the gateway.py process didn't start at all. Troubleshoot:
+
+Step 1: Check if port 8443 is listening
+```bash
+ss -tln | grep 8443
+```
+
+Step 2: Check if gateway.py process is running
+```bash
+ps aux | grep gateway.py | grep -v grep
+```
+
+Step 3: If port is not listening or process doesn't exist, click "Stop" then "Start" in the App Center, or restart the app.
+
+Step 4: You can also bypass fnOS gateway and access directly to confirm if it's a gateway-layer issue:
+```
+http://<NAS_IP>:8443
+```
+
 ### Q: Shows "Unauthorized" or "0 devices online" after opening
 
 A: This is Scrcpy License authorization prompt. Newly installed devices currently have 20 devices 3-month free trial (from Nov 1, 2026, expires to 10 devices, other basic features all free). Wait for container to fully start (~1-2 minutes) then refresh page. If still unauthorized, check if container is running:
