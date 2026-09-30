@@ -591,6 +591,28 @@ WebRTC 接收 H.264 流 ←── TURN/STUN 中继 ←── scrcpy 编码 ←�
 
 ## 常见问题
 
+### Q: 手机飞牛 APP 应用中心安装时弹出「无法安装 安卓模拟器（国内版）- 未知错误」
+
+A: 这是飞牛 **手机 APP 端**应用中心的通用报错，发生在应用中心层面（还未执行安装脚本），不是本应用的问题。
+
+**可能原因与解决方法：**
+1. **优先用网页版安装**：在电脑浏览器打开飞牛管理页面，通过网页版应用中心安装。手机 APP 端应用中心偶发此类「未知错误」，网页版通常正常
+2. **检查磁盘空间**：安卓镜像约 2GB，加上临时文件需至少 4GB 空闲空间
+3. **重启飞牛 APP**：完全关闭 APP 后重新打开再试
+4. **手动安装**：下载 fpk 安装包，通过网页版「手动安装」上传安装
+
+若以上方法均无效，请通过下方「问题反馈」章节反馈，并附上 NAS 型号、系统版本和截图。
+
+### Q: 手机飞牛 APP 安装时弹出「无法安装 - 状态操作不支持，并返回当前应用状态和业务状态」
+
+A: 这是飞牛 **手机 APP 端**应用中心的状态机错误，通常是因为应用处于异常状态（如上次安装/更新中途取消、重复点击安装按钮、安装进程残留）导致状态冲突。
+
+**解决方法：**
+1. **不要重复点击**：等待当前操作完成，安装过程中不要反复点击安装/更新按钮
+2. **重启飞牛 APP**：完全关闭 APP 后重新打开，刷新应用状态
+3. **网页版操作**：在电脑浏览器打开飞牛管理页面，通过网页版应用中心进行安装/更新/卸载操作
+4. **清理残留状态**：如果应用显示「已安装」但实际无法使用，先在网页版中卸载，再重新安装
+
 ### Q: 首次安装时弹出「无法安装 androidemu - 执行脚本出错且原因未知」
 
 A: 优先检查 **binder 驱动**是否已安装：
@@ -737,6 +759,18 @@ docker logs androidemu-android
 docker logs androidemu-webrtc --tail 50
 ```
 
+### Q: 终端执行 docker 命令报 `permission denied while trying to connect to the Docker daemon socket`
+
+A: 当前用户不在 docker 组中，没有权限直接访问 Docker daemon。
+
+**解决方法（任选一种）：**
+1. **临时方案**：在所有 docker 命令前加 `sudo`，例如 `sudo docker ps`、`sudo docker exec androidemu-android ...`
+2. **永久方案**：将用户加入 docker 组，重新登录后生效：
+```bash
+sudo usermod -aG docker <你的用户名>
+```
+> 注意：加入 docker 组后需要**退出终端重新登录**才能生效。
+
 ### Q: 容器卡顿、无法点击或移动、一动不动
 
 A: **v3.7.0+ 用户**：打开应用页面，如果上游服务暂时不可用，会自动显示友好状态页，其中包含：
@@ -816,6 +850,8 @@ docker exec androidemu-android getprop sys.boot_completed
 **4. 手动注入 agent（boot_completed=1 但设备仍不在线时用，按顺序执行）：**
 
 > 注意：以下命令中的 `<NAS_IP>` 需替换为你的 NAS 实际局域网 IP；x86 设备用 `amd64`，ARM 设备用 `arm64`。
+>
+> **权限提示**：如果执行 docker 命令时出现 `permission denied while trying to connect to the Docker daemon socket`，说明当前用户不在 docker 组中。请在所有 docker 命令前加 `sudo`，或将用户加入 docker 组（`sudo usermod -aG docker <用户名>`，重新登录后生效）。
 
 第 1 步：从穿云投屏镜像取出 agent（首次需要）
 ```bash

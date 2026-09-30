@@ -575,6 +575,28 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 
 ## FAQ
 
+### Q: "Unable to install Android Emulator (China) - Unknown error" when installing via fnOS mobile app
+
+A: This is a generic error from the **fnOS mobile app** App Center, occurring at the app center level (before the installation script runs). It is not an issue with this application.
+
+**Possible causes and solutions:**
+1. **Use the web version first**: Open the fnOS management page in a desktop browser and install via the web App Center. The mobile app occasionally throws this "Unknown error", while the web version usually works fine
+2. **Check disk space**: The Android image is about 2GB, plus temporary files require at least 4GB of free space
+3. **Restart the fnOS app**: Fully close the app and reopen it, then try again
+4. **Manual installation**: Download the fpk package and upload it via the web version's "Manual Install"
+
+If none of the above works, please feedback via any link in the "Feedback Links & Channels" section below, including your NAS model, system version, and screenshots.
+
+### Q: "Unable to install - State operation not supported, returns current app state and business state" when installing via fnOS mobile app
+
+A: This is a state machine error from the **fnOS mobile app** App Center, usually caused by the app being in an abnormal state (e.g., previous installation/update cancelled midway, repeatedly clicking the install button, leftover installation process).
+
+**Solutions:**
+1. **Don't click repeatedly**: Wait for the current operation to complete. Do not repeatedly click install/update buttons during installation
+2. **Restart the fnOS app**: Fully close the app and reopen it to refresh app state
+3. **Use the web version**: Open the fnOS management page in a desktop browser and perform install/update/uninstall operations via the web App Center
+4. **Clean up leftover state**: If the app shows "Installed" but is actually unusable, uninstall it first in the web version, then reinstall
+
 ### Q: "Unable to install androidemu - script execution error with unknown reason" during first-time installation
 
 A: First check if the **binder driver** is installed:
@@ -721,6 +743,18 @@ Check webrtc container logs:
 docker logs androidemu-webrtc --tail 50
 ```
 
+### Q: Terminal docker commands fail with `permission denied while trying to connect to the Docker daemon socket`
+
+A: Your current user is not in the docker group and lacks permission to access the Docker daemon directly.
+
+**Solutions (choose one):**
+1. **Temporary**: Prefix all docker commands with `sudo`, e.g. `sudo docker ps`, `sudo docker exec androidemu-android ...`
+2. **Permanent**: Add your user to the docker group, then re-login for changes to take effect:
+```bash
+sudo usermod -aG docker <your-username>
+```
+> Note: After adding to the docker group, you must **exit the terminal and log back in** for it to take effect.
+
 ### Q: Container is laggy, frozen, unresponsive to clicks or gestures
 
 A: **v3.7.0+ users**: Open the app page. If the upstream service is temporarily unavailable, a friendly status page will automatically appear, including:
@@ -800,6 +834,8 @@ docker exec androidemu-android getprop sys.boot_completed
 **4. Manual agent injection (when boot_completed=1 but device still offline, run in order):**
 
 > Note: Replace `<NAS_IP>` with your NAS actual LAN IP; use `amd64` for x86 devices, `arm64` for ARM devices.
+>
+> **Permission note**: If docker commands fail with `permission denied while trying to connect to the Docker daemon socket`, your user is not in the docker group. Prefix all docker commands with `sudo`, or add your user to the docker group (`sudo usermod -aG docker <username>`, then re-login).
 
 Step 1: Extract agent from scrcpy-over-webrtc image (first time only)
 ```bash
