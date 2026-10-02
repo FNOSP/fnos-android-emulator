@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.7.5-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.3-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -34,6 +34,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - [Feedback Links & Channels](#feedback-links--channels)
 - [Support the Publisher & Contributors](#support-the-publisher--contributors)
 - [Open Source License & Disclaimer](#open-source-license--disclaimer)
+- [Changelog](#changelog)
 - [Acknowledgements & Links](#acknowledgements--links)
 
 ---
@@ -61,6 +62,12 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Container Health Check (v3.7.0+)**: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
 - **One-Click Fix (v3.7.0+)**: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
 - **Friendly Status Page (v3.7.0+)**: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
+- **Connection Stability Optimization (v3.8.0+)**: WebSocket auto-reconnect (exponential backoff 1s→30s) + 25s heartbeat keepalive, TURN relay config optimization (no-loopback-peers, bps-capacity, max-allocate-lifetime=3600)
+- **Immersive Fullscreen (v3.8.0+)**: Desktop object-fit:contain, mobile cover, multi-selector compatible with different scrcpy-over-webrtc versions, click fullscreen button for true fullscreen
+- **VAAPI Hardware Codec Dynamic Detection (v3.8.0+)**: Auto-detects GPU VAAPI encoding (vainfo with EncSlice/EncPicture) and decoding (H264 VLD) support, enables hardware acceleration only when supported, auto-fallback to Google software codecs to avoid black screen/garbled video
+- **NVIDIA GPU Support (v3.8.0+)**: Auto-detects NVIDIA GPU and mounts devices and drivers, smart GPU selection priority Intel > AMD > NVIDIA
+- **Dual Translation Layer Auto-Management (v3.8.1+)**: Built-in libndk_translation (default) and libhoudini (auto-download), switch via bind mount over /system/lib*/libnb.so; auto mode detects ARMv8.1 instruction SIGILL crashes and switches to houdini, 5-minute anti-loop restart cooldown
+- **Boot Performance Optimization (v3.8.3+)**: lmkd threshold increased (max 315MB→3072MB) to reduce frequent process kills during boot, dex2oat uses verify-only mode for faster first boot, elevated system_server/surfaceflinger process priority
 
 ---
 
@@ -167,6 +174,40 @@ If you have public IP or use intranet penetration (frp, ZeroTier, Tailscale etc.
 - ✅ Map port 8443 to external network, can use WebRTC casting directly
 - ✅ Need to set "External access address (WebRTC media stream)" in "Casting Settings" to your public domain or IP
 - ✅ TURN relay server built-in, ensure UDP 3478 port reachable
+
+#### External Network Access Guide (Important)
+
+**Limitations of fnOS remote domain (xxx.fnos.net):**
+- fnOS reverse proxy **only passes TCP**, WebRTC UDP media streams cannot pass through
+- Therefore, when accessing via fnOS remote domain, **only WS casting works** (TCP), WebRTC casting will fail
+- File management, terminal (ADB), etc. rely on WebRTC DataChannel (UDP), **not available externally**
+- WS casting first tries WebRTC (UDP), then falls back to WS after timeout, so **initial connection may take 10-30 seconds**
+
+**Recommended external access solution (full functionality):**
+
+Use frp or other intranet penetration tools to **expose both TCP 8443 and UDP 3478**:
+
+```ini
+# frpc.ini example
+[androidemu_web]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 8443
+remote_port = 8443
+
+[androidemu_turn]
+type = udp
+local_ip = 127.0.0.1
+local_port = 3478
+remote_port = 3478
+```
+
+After configuration, access via `http://<your-domain>:8443`, all features including WebRTC casting, file management, and terminal are available.
+
+**How to fix slow WS casting connection:**
+1. Wait 10-30 seconds patiently, WebRTC will timeout and auto-fallback to WS
+2. Or manually click "Switch to WebSocket casting" button on the connection page to use WS immediately
+3. After exposing UDP 3478 via frp, WebRTC connects directly without waiting
 
 ---
 
@@ -963,7 +1004,7 @@ docker exec androidemu-webrtc ls -la /app/data/downloads/
 
 Step 2: Delete all APKs (or specify a filename to delete one)
 ```bash
-docker exec -u 0 androidemu-webrtc rm -f /app/data/downloads/*.apk
+sudo docker exec androidemu-webrtc sh -c 'rm -rf /app/data/downloads/*'
 ```
 
 Step 3: Clear file metadata (otherwise the dropdown still shows filenames)
@@ -972,6 +1013,38 @@ docker exec androidemu-webrtc sh -c 'echo "{}" > /app/data/files_meta.json'
 ```
 
 Refresh the page after deletion, and the "Select existing file from cloud" dropdown will be empty.
+
+### Q: APK upload via scrcpy-over-webrtc fails to install, how to install manually?
+
+A: Uploaded APKs are stored in the webrtc container at `/app/data/downloads/`. If the UI install fails, you can install manually via command line:
+
+**Step 1: List uploaded APK files**
+```bash
+sudo docker exec androidemu-webrtc ls -la /app/data/downloads/
+```
+
+**Step 2: Copy APK to host temp directory**
+```bash
+sudo docker cp androidemu-webrtc:/app/data/downloads/your-app.apk /tmp/
+```
+
+**Step 3: Copy to Android container**
+```bash
+sudo docker cp /tmp/your-app.apk androidemu-android:/data/local/tmp/
+```
+
+**Step 4: Install inside Android container**
+```bash
+sudo docker exec androidemu-android pm install /data/local/tmp/your-app.apk
+```
+
+**Step 5 (optional): Clean up temp files**
+```bash
+sudo docker exec androidemu-android rm /data/local/tmp/your-app.apk
+sudo rm /tmp/your-app.apk
+```
+
+> The above commands have been verified on both x86 and ARM platforms. Replace `your-app.apk` with the actual filename.
 
 ### Q: How to uninstall
 
@@ -1061,6 +1134,37 @@ Upstream component sources and license status see `LICENSE` file in package.
 4. Third-party components integrated in app (redroid, Scrcpy etc.) maintained by respective authors, their functionality and stability not controlled by this project.
 5. Users should backup important data themselves, this app doesn't guarantee security and integrity of data inside container.
 6. This app doesn't collect any user data, all data stored on user's local device.
+
+---
+
+## Changelog
+
+### v3.8.3 (2026-10-02)
+- **Fixed**: redroid 11 image has MediaCodec compatibility issue (NDK thread null pointer crash), rolled back to redroid 12
+- **Optimized**: lmkd memory threshold increased (72/90/108/126/216/315MB → 512/768/1024/1280/2048/3072MB), resolves instability caused by frequent empty process kills during boot
+- **Optimized**: dex2oat uses verify-only mode for first boot, reduces CPU/IO pressure, speeds up first boot
+- **Optimized**: Auto-elevate system_server/surfaceflinger process priority after boot (oom_score_adj=-10)
+- **Added**: optimize_boot.sh startup optimization script, integrated into agent_autodeploy.sh, auto-executes after boot_completed
+
+### v3.8.2 (2026-10-02)
+- **Added**: libhoudini auto-download script (download_houdini.sh), supports GitHub + ghproxy multiple sources, auto-extract and verify after download
+- **Added**: Translation layer auto mode — gateway background thread scans logcat every 30s, detects Undefined instruction/SIGILL and auto-writes crash marker + restarts to switch to houdini
+- **Optimized**: 5-minute anti-loop restart cooldown mechanism, prevents repeated restarts caused by translation layer switching
+- **Fixed**: sed delete commands in tune_compose.sh were too aggressive, would accidentally delete comment lines containing config strings, changed to line-anchored matching (6 fixes total)
+
+### v3.8.1 (2026-10-02)
+- **Added**: Dual translation layer framework — switch ndk/houdini via bind mount over /system/lib*/libnb.so, default ndk
+- **Background**: fnOS app (com.trim.app, Flutter+Go) uses ARMv8.1 instruction (0xd5380000), Google libndk_translation doesn't support it causing SIGILL crash; ro.dalvik.vm.native.bridge is read-only, cannot be changed via setprop at runtime
+
+### v3.8.0 (2026-10-02)
+- **Optimized**: WebSocket auto-reconnect (exponential backoff 1s→30s) + 25s heartbeat keepalive, improves connection stability
+- **Optimized**: Immersive fullscreen CSS/JS enhancement, desktop object-fit:contain, mobile cover, multi-selector compatible with different scrcpy-over-webrtc versions
+- **Optimized**: TURN config optimization (no-loopback-peers, bps-capacity, max-allocate-lifetime=3600 etc.)
+- **Added**: VAAPI hardware encoding dynamic detection (enables only if vainfo has EncSlice/EncPicture), unsupported machines keep Google software encoding to avoid black screen
+- **Added**: Hardware decoding vainfo detection (enables only if H264 VLD supported), auto software decode fallback if unsupported
+- **Added**: NVIDIA GPU device passthrough + driver mount support
+- **Added**: Smart GPU selection (Intel > AMD > NVIDIA priority)
+- **Removed**: Memory limit (8GB RAM doesn't need mem_limit: 2g)
 
 ---
 

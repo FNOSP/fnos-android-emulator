@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.7.0-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.3-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -34,6 +34,7 @@
 - [问题、建议反馈链接和渠道](#问题建议反馈链接和渠道)
 - [对发布者和其他贡献者的支持](#对发布者和其他贡献者的支持)
 - [开源许可和免责声明](#开源许可和免责声明)
+- [更新日志](#更新日志)
 - [致谢和导向链接](#致谢和导向链接)
 
 ---
@@ -61,6 +62,12 @@
 - **容器健康检查（v3.7.0+）**：实时检测 boot 状态、运行时长、OOM、surfaceflinger/agent 进程，自动识别"启动超时""内存不足被杀死""画面服务异常"等问题
 - **一键修复（v3.7.0+）**：状态页提供"修复GPU/画面""重启安卓容器""重启画面服务"三个按钮，无需 SSH 命令行即可自助修复常见问题
 - **友好状态页（v3.7.0+）**：上游服务不可用时显示美观的状态页（容器状态表格、常见问题排查、刷新按钮），不再是纯文本 "Bad Gateway"
+- **连接稳定性优化（v3.8.0+）**：WebSocket 自动重连（指数退避 1s→30s）+ 25 秒心跳保活，TURN 中继配置优化（no-loopback-peers、bps-capacity、max-allocate-lifetime=3600）
+- **沉浸式全屏（v3.8.0+）**：电脑端 object-fit:contain、手机端 cover，多选择器兼容不同版本穿云投屏，点击全屏键自动全部全屏
+- **VAAPI 硬件编解码动态检测（v3.8.0+）**：自动检测 GPU 是否支持 VAAPI 编码（vainfo 含 EncSlice/EncPicture）和解码（H264 VLD），支持才启用硬件加速，不支持自动回退 Google 软件编解码器，避免黑屏/花屏
+- **NVIDIA GPU 支持（v3.8.0+）**：自动检测 NVIDIA GPU 并挂载设备和驱动，智能 GPU 选择优先级 Intel > AMD > NVIDIA
+- **双翻译层自动管理（v3.8.1+）**：内置 libndk_translation（默认）和 libhoudini（自动下载），通过 bind mount 覆盖 /system/lib*/libnb.so 切换；auto 模式自动检测 ARMv8.1 指令 SIGILL 崩溃并切换到 houdini，5 分钟防循环重启冷却
+- **启动性能优化（v3.8.3+）**：lmkd 阈值调高（最高 315MB→3072MB）减少启动期频繁杀进程，dex2oat 首次启动用 verify-only 模式加快启动，提升 system_server/surfaceflinger 进程优先级
 
 ---
 
@@ -167,6 +174,40 @@ https://<NAS_IP>:8443
 - ✅ 将 8443 端口映射到外网，可直接使用 WebRTC 投屏
 - ✅ 需要在「投屏设置」中将「外网访问地址（WebRTC 媒体流）」设置为你的公网域名或 IP
 - ✅ TURN 中继服务器已内置，确保 UDP 3478 端口可达
+
+#### 外网访问专项说明（重要）
+
+**飞牛官方远程域名（xxx.fnos.net）的限制：**
+- 飞牛反向代理**只透传 TCP**，WebRTC 的 UDP 媒体流无法通过
+- 因此通过飞牛远程域名访问时，**只能使用 WS 投屏**（走 TCP），WebRTC 投屏会失败
+- 文件管理、终端（ADB）等功能依赖 WebRTC DataChannel（UDP），**外网不可用**
+- WS 投屏连接时会先尝试 WebRTC（UDP），超时后才回退到 WS，因此**首次连接可能需要等待 10-30 秒**
+
+**推荐的外网访问方案（功能最完整）：**
+
+使用 frp 或其他内网穿透工具，**同时暴露 TCP 8443 和 UDP 3478**：
+
+```ini
+# frpc.ini 示例
+[androidemu_web]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 8443
+remote_port = 8443
+
+[androidemu_turn]
+type = udp
+local_ip = 127.0.0.1
+local_port = 3478
+remote_port = 3478
+```
+
+配置后通过 `http://<你的域名>:8443` 访问，WebRTC 投屏、文件管理、终端等全部功能可用。
+
+**WS 投屏连接慢的解决方法：**
+1. 耐心等待 10-30 秒，WebRTC 超时后会自动回退到 WS
+2. 或在连接页面手动点击「切换为 WebSocket 投屏」按钮，立即使用 WS
+3. 使用 frp 暴露 UDP 3478 后，WebRTC 可直接连接，无需等待
 
 ---
 
@@ -804,7 +845,7 @@ A: **v3.7.0+ 用户**：打开应用页面，如果上游服务暂时不可用�
 
 ### Q: 安卓容器内存很低（<300MB）、设备一直不在线
 
-A: 正常 Android 12 启动后内存应在 300MB 以上。若容器在运行但内存只有 100-200MB，说明安卓系统未完成启动（`boot_completed != 1`），agent 无法部署，设备永远不在线。按以下步骤排查：
+A: 正常 Android 12 启动后内存应在 300MB 以上（单个安卓容器内的系统占用，不含宿主其他服务）。若容器在运行但内存只有 100-200MB，说明安卓系统未完成启动（`boot_completed != 1`），agent 无法部署，设备永远不在线。按以下步骤排查：
 
 **1. 确认启动状态：**
 ```bash
@@ -882,6 +923,17 @@ sleep 3
 ```bash
 docker exec androidemu-android pidof cloudphone-agent
 ```
+
+### Q: 安卓容器启动很慢（超过5分钟）、内存波动大、系统不稳定
+
+A: v3.8.3 之前的版本存在 lmkd（低内存杀手）阈值过低的问题：默认最高阈值仅 315MB，对大内存系统过于激进，导致启动期频繁杀空进程、系统服务反复重启，表现为启动慢、内存在 2.0-2.5GB 波动、设备长时间不在线。
+
+**v3.8.3+ 已修复**：lmkd 阈值调高到 512/768/1024/1280/2048/3072MB，dex2oat 首次启动用 verify-only 模式加快启动，启动后自动提升关键进程优先级。升级到 v3.8.3+ 即可解决。
+
+若仍有问题，请检查：
+1. 宿主可用内存是否 ≥2GB（`free -h`）
+2. 是否有其他应用占用大量内存（如飞牛照片、下载等）
+3. 容器日志是否有 OOM 或崩溃（`docker logs androidemu-android --tail 50`）
 
 ### Q: WebRTC 连接失败、黑屏或一直转圈
 
@@ -980,7 +1032,7 @@ docker exec androidemu-webrtc ls -la /app/data/downloads/
 
 第 2 步：删除所有APK（也可以指定文件名删除单个）
 ```bash
-docker exec -u 0 androidemu-webrtc rm -f /app/data/downloads/*.apk
+sudo docker exec androidemu-webrtc sh -c 'rm -rf /app/data/downloads/*'
 ```
 
 第 3 步：清空文件元数据记录（否则下拉框还会显示文件名）
@@ -989,6 +1041,38 @@ docker exec androidemu-webrtc sh -c 'echo "{}" > /app/data/files_meta.json'
 ```
 
 删完刷新页面，「从信令云端选择已有文件」下拉框就空了。
+
+### Q: 穿云投屏上传APK后安装失败，怎么手动安装？
+
+A: 穿云投屏上传的APK存放在穿云投屏容器的 `/app/data/downloads/` 目录。如果界面安装失败，可以通过命令行手动安装：
+
+**第 1 步：查看已上传的APK文件**
+```bash
+sudo docker exec androidemu-webrtc ls -la /app/data/downloads/
+```
+
+**第 2 步：把APK复制到宿主机临时目录**
+```bash
+sudo docker cp androidemu-webrtc:/app/data/downloads/你的应用.apk /tmp/
+```
+
+**第 3 步：复制到安卓容器**
+```bash
+sudo docker cp /tmp/你的应用.apk androidemu-android:/data/local/tmp/
+```
+
+**第 4 步：在安卓容器内安装**
+```bash
+sudo docker exec androidemu-android pm install /data/local/tmp/你的应用.apk
+```
+
+**第 5 步（可选）：清理临时文件**
+```bash
+sudo docker exec androidemu-android rm /data/local/tmp/你的应用.apk
+sudo rm /tmp/你的应用.apk
+```
+
+> 以上命令已在 x86 和 ARM 平台验证通过。将 `你的应用.apk` 替换为实际的文件名。
 
 ### Q: 如何卸载
 
@@ -1030,7 +1114,7 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 
 ## 已知限制
 
-1. **音频**：3.7.3+ 已启用音频（Codec2 Opus 软件编码器），需在连接设置中手动开启
+1. **音频**：3.7.3+ 已启用音频（Codec2 Opus 软件编码器），需在连接设置中手动开启；3.8.x 进一步优化了音频稳定性。注意：音量大小与宿主系统实际音量匹配（容器内设100但宿主系统只设50，则按50输出）
 2. **外网访问**：飞牛反向代理只透传 TCP，WebRTC 媒体流（UDP）无法通过，自动降级为 WebSocket 投屏
 3. **飞牛 APP**：部分版本 WebView 对 WebSocket 代理支持有限，建议用手机浏览器
 4. **ARM 应用兼容性**：强依赖谷歌服务或含反模拟器检测的 ARM64 应用可能闪退
@@ -1078,6 +1162,37 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 4. 应用内集成的第三方组件（redroid、穿云投屏等）由各自作者维护，其功能和稳定性不受本项目控制。
 5. 用户应自行备份重要数据，本应用不对容器内数据的安全性和完整性做出保证。
 6. 本应用不收集任何用户数据，所有数据均存储在用户本地设备中。
+
+---
+
+## 更新日志
+
+### v3.8.3（2026-10-02）
+- **修复**：redroid 11 镜像存在 MediaCodec 兼容性问题（NDK 线程空指针崩溃），回退到 redroid 12
+- **优化**：lmkd 内存阈值调高（72/90/108/126/216/315MB → 512/768/1024/1280/2048/3072MB），解决启动期频繁杀空进程导致的不稳定
+- **优化**：dex2oat 首次启动使用 verify-only 模式，减少 CPU/IO 压力，加快首次启动
+- **优化**：启动后自动提升 system_server/surfaceflinger 进程优先级（oom_score_adj=-10）
+- **新增**：optimize_boot.sh 启动优化脚本，集成到 agent_autodeploy.sh，boot_completed 后自动执行
+
+### v3.8.2（2026-10-02）
+- **新增**：libhoudini 自动下载脚本（download_houdini.sh），支持 GitHub + ghproxy 多源，下载后自动解压校验
+- **新增**：翻译层 auto 模式 — gateway 后台线程每 30 秒扫描 logcat，检测到 Undefined instruction/SIGILL 自动写崩溃标记并重启切换到 houdini
+- **优化**：5 分钟防循环重启冷却机制，避免翻译层切换导致的反复重启
+- **修复**：tune_compose.sh 中 sed 删除命令过于粗暴，会误删含配置字符串的注释行，改为行首锚定匹配（共修复 6 处）
+
+### v3.8.1（2026-10-02）
+- **新增**：双翻译层框架 — 通过 bind mount 覆盖 /system/lib*/libnb.so 实现 ndk/houdini 切换，默认 ndk
+- **背景**：飞牛应用（com.trim.app，Flutter+Go）使用 ARMv8.1 指令（0xd5380000），Google libndk_translation 不支持导致 SIGILL 闪退；ro.dalvik.vm.native.bridge 是只读属性，运行时无法 setprop 修改
+
+### v3.8.0（2026-10-02）
+- **优化**：WebSocket 自动重连（指数退避 1s→30s）+ 25 秒心跳保活，提升连接稳定性
+- **优化**：沉浸式全屏 CSS/JS 增强，电脑端 object-fit:contain，手机端 cover，多选择器兼容不同版本穿云投屏
+- **优化**：TURN 配置优化（no-loopback-peers、bps-capacity、max-allocate-lifetime=3600 等）
+- **新增**：VAAPI 硬件编码动态检测（vainfo 含 EncSlice/EncPicture 才启用），不支持的机器保持 Google 软件编码，避免黑屏
+- **新增**：硬件解码 vainfo 检测（H264 VLD 支持才启用），不支持自动软解
+- **新增**：NVIDIA GPU 设备直通 + 驱动挂载支持
+- **新增**：智能 GPU 选择（Intel > AMD > NVIDIA 优先级）
+- **移除**：内存限制（8GB 内存不需要 mem_limit: 2g）
 
 ---
 
