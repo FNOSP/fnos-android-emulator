@@ -34,7 +34,6 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - [Feedback Links & Channels](#feedback-links--channels)
 - [Support the Publisher & Contributors](#support-the-publisher--contributors)
 - [Open Source License & Disclaimer](#open-source-license--disclaimer)
-- [Changelog](#changelog)
 - [Acknowledgements & Links](#acknowledgements--links)
 
 ---
@@ -1134,37 +1133,6 @@ Upstream component sources and license status see `LICENSE` file in package.
 4. Third-party components integrated in app (redroid, Scrcpy etc.) maintained by respective authors, their functionality and stability not controlled by this project.
 5. Users should backup important data themselves, this app doesn't guarantee security and integrity of data inside container.
 6. This app doesn't collect any user data, all data stored on user's local device.
-
----
-
-## Changelog
-
-### v3.8.3 (2026-10-02)
-- **Fixed**: redroid 11 image has MediaCodec compatibility issue (NDK thread null pointer crash), rolled back to redroid 12
-- **Optimized**: lmkd memory threshold increased (72/90/108/126/216/315MB → 512/768/1024/1280/2048/3072MB), resolves instability caused by frequent empty process kills during boot
-- **Optimized**: dex2oat uses verify-only mode for first boot, reduces CPU/IO pressure, speeds up first boot
-- **Optimized**: Auto-elevate system_server/surfaceflinger process priority after boot (oom_score_adj=-10)
-- **Added**: optimize_boot.sh startup optimization script, integrated into agent_autodeploy.sh, auto-executes after boot_completed
-
-### v3.8.2 (2026-10-02)
-- **Added**: libhoudini auto-download script (download_houdini.sh), supports GitHub + ghproxy multiple sources, auto-extract and verify after download
-- **Added**: Translation layer auto mode — gateway background thread scans logcat every 30s, detects Undefined instruction/SIGILL and auto-writes crash marker + restarts to switch to houdini
-- **Optimized**: 5-minute anti-loop restart cooldown mechanism, prevents repeated restarts caused by translation layer switching
-- **Fixed**: sed delete commands in tune_compose.sh were too aggressive, would accidentally delete comment lines containing config strings, changed to line-anchored matching (6 fixes total)
-
-### v3.8.1 (2026-10-02)
-- **Added**: Dual translation layer framework — switch ndk/houdini via bind mount over /system/lib*/libnb.so, default ndk
-- **Background**: fnOS app (com.trim.app, Flutter+Go) uses ARMv8.1 instruction (0xd5380000), Google libndk_translation doesn't support it causing SIGILL crash; ro.dalvik.vm.native.bridge is read-only, cannot be changed via setprop at runtime
-
-### v3.8.0 (2026-10-02)
-- **Optimized**: WebSocket auto-reconnect (exponential backoff 1s→30s) + 25s heartbeat keepalive, improves connection stability
-- **Optimized**: Immersive fullscreen CSS/JS enhancement, desktop object-fit:contain, mobile cover, multi-selector compatible with different scrcpy-over-webrtc versions
-- **Optimized**: TURN config optimization (no-loopback-peers, bps-capacity, max-allocate-lifetime=3600 etc.)
-- **Added**: VAAPI hardware encoding dynamic detection (enables only if vainfo has EncSlice/EncPicture), unsupported machines keep Google software encoding to avoid black screen
-- **Added**: Hardware decoding vainfo detection (enables only if H264 VLD supported), auto software decode fallback if unsupported
-- **Added**: NVIDIA GPU device passthrough + driver mount support
-- **Added**: Smart GPU selection (Intel > AMD > NVIDIA priority)
-- **Removed**: Memory limit (8GB RAM doesn't need mem_limit: 2g)
 
 ---
 

@@ -34,7 +34,6 @@
 - [问题、建议反馈链接和渠道](#问题建议反馈链接和渠道)
 - [对发布者和其他贡献者的支持](#对发布者和其他贡献者的支持)
 - [开源许可和免责声明](#开源许可和免责声明)
-- [更新日志](#更新日志)
 - [致谢和导向链接](#致谢和导向链接)
 
 ---
@@ -1148,51 +1147,70 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 
 ### 开源许可
 
-- redroid：[Apache 2.0](http://www.apache.org/licenses)
-- scrcpy-over-webrtc（穿云投屏）：见上游项目
-- 本项目打包脚本和配置：MIT
+本应用运行时通过 Docker 拉取以下公开镜像，不修改、不捆绑、不分发其源码与二进制：
 
-上游组件出处与许可状态详见包内 `LICENSE` 文件。
+#### 1. redroid（安卓容器）
+- 项目地址：https://github.com/remote-android/redroid-doc
+- 原作者：zhouziyang（remote-android 组织）
+- 许可证状态：
+  - redroid 本身：[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)（上游 README 明确声明）
+  - redroid-modules 内核模块仓库：[GPL-2.0](https://github.com/remote-android/redroid-modules/blob/master/LICENSE)
+  - 容器内 AOSP（Android 开源项目）：[Apache 2.0](https://source.android.com/setup/start/licenses)
+  - 容器内 Linux 内核相关：GPL-2.0，项目地址：https://www.kernel.org/
+- 内置翻译层：
+  - libndk_translation（Google 官方 NDK 翻译层）：Google 专有组件，随 redroid 镜像内置，许可条款见 Google 相关协议
+  - libhoudini（Intel 翻译层，v3.8.1+ 自动下载）：Intel 专有组件，从公开渠道下载，许可条款见 Intel 相关协议
+
+#### 2. scrcpy-over-webrtc（穿云投屏 / 云手机画面服务）
+- 项目地址：https://github.com/hqw700/ScrcpyOverWebRTC
+- 原作者：hqw700（buutuu）
+- 许可证状态：
+  - 前端源码（web-app）：[MIT License](https://opensource.org/licenses/MIT)
+  - 官方二进制核心组件（服务端、Agent 部署包、APK 运行环境）：仅供个人学习交流、技术研究与非商业测试使用
+- 内部依赖：
+  - scrcpy（作者：Genymobile）：[Apache 2.0](https://github.com/Genymobile/scrcpy/blob/master/LICENSE)，项目地址：https://github.com/Genymobile/scrcpy
+  - ya-webadb / Tango（作者：yume-chan）：[MIT](https://github.com/yume-chan/ya-webadb/blob/master/LICENSE)，项目地址：https://github.com/yume-chan/ya-webadb
+  - Pion WebRTC（作者：pion 组织）：[MIT](https://github.com/pion/webrtc/blob/master/LICENSE)，项目地址：https://github.com/pion/webrtc
+  - xterm.js（作者：xtermjs 组织）：[MIT](https://github.com/xtermjs/xterm.js/blob/master/LICENSE)，项目地址：https://github.com/xtermjs/xterm.js
+  - coturn TURN 服务器（作者：coturn 项目）：[BSD 3-Clause](https://github.com/coturn/coturn/blob/master/LICENSE)，项目地址：https://github.com/coturn/coturn
+
+#### 3. 本项目打包脚本和配置
+- 项目地址：https://github.com/lin1740/fnos-android-emulator
+- 原作者：键盘敲粥香（lin1740）
+- 许可证：[MIT License](https://opensource.org/licenses/MIT)
+  > 简要说明：MIT 许可证允许任何人免费使用、复制、修改、合并、发布、分发、再许可和销售本软件的副本，前提是在所有副本或重要部分中包含上述版权声明和本许可声明。本软件按"现状"提供，不提供任何明示或默示的担保。
+- 包含：docker-compose 配置、安装/升级脚本、gateway.py 网关、状态页、性能优化脚本等（均为本项目自行开发，适配飞牛 fnOS 平台）
+- 项目源码链接：见飞牛应用中心本应用详情页的「发布者」蓝色链接，或应用介绍中的项目链接
+- 说明：本应用未自行开发 UI 界面，画面管理页面依赖穿云投屏（scrcpy-over-webrtc）的原生 UI，该 UI 不在本项目修改范围内
+
+> **许可提示**：穿云投屏官方二进制核心组件仅供个人学习交流、技术研究与非商业测试使用，商用前请与作者确认授权；libndk_translation 和 libhoudini 为厂商专有组件，仅随镜像使用或自动下载，不进行再分发。
 
 ### 免责声明
 
-1. 本项目为非官方第三方应用，按"现状"提供，使用风险自负。
+1. 本项目为非官方第三方应用，按"现状"（AS IS）提供，使用风险自负。
 2. 本项目仅用于学习和研究目的，不得用于任何违法用途。
-3. 使用本应用产生的任何数据丢失、系统故障、服务中断等问题，开发者不承担任何责任。
-4. 应用内集成的第三方组件（redroid、穿云投屏等）由各自作者维护，其功能和稳定性不受本项目控制。
+3. 使用本应用产生的任何数据丢失、系统故障、服务中断等问题，发布者不承担任何责任。
+4. 应用内集成的第三方组件（redroid、穿云投屏等）由各自作者维护，其功能、稳定性和合规性不受本项目控制。
 5. 用户应自行备份重要数据，本应用不对容器内数据的安全性和完整性做出保证。
 6. 本应用不收集任何用户数据，所有数据均存储在用户本地设备中。
 
----
+### 开源义务说明
 
-## 更新日志
+1. **GPL-2.0 组件义务**：redroid-modules（内核模块）及容器内 Linux 内核相关代码遵循 GPL-2.0 许可证。本应用仅运行时从公开仓库拉取 redroid 镜像，不修改、不重分发其源码与二进制，因此不触发 GPL-2.0 的传染条款；若用户自行修改、重编译或再分发上述 GPL-2.0 组件，须遵守 GPL-2.0 的开源义务，包括但不限于公开修改后的源代码、保留版权声明、以相同许可证分发。
+2. **Apache 2.0 组件义务**：AOSP、scrcpy 等遵循 Apache 2.0 许可证的组件，再分发时须保留版权声明、许可证副本和 NOTICE 文件。
+3. **专有组件**：libndk_translation（Google）、libhoudini（Intel）为厂商专有组件，本应用不进行再分发，仅随上游镜像使用或运行时自动下载；用户应遵守对应厂商的使用条款。
+4. **穿云投屏组件**：前端源码为 MIT 许可证，可自由二次开发；官方二进制核心组件仅供个人学习交流、技术研究与非商业测试使用，商用前请与作者确认授权。
+5. **本项目代码**：打包脚本和配置以 MIT 许可证开放，可自由使用、修改和分发，须保留版权声明和许可声明。
 
-### v3.8.3（2026-10-02）
-- **修复**：redroid 11 镜像存在 MediaCodec 兼容性问题（NDK 线程空指针崩溃），回退到 redroid 12
-- **优化**：lmkd 内存阈值调高（72/90/108/126/216/315MB → 512/768/1024/1280/2048/3072MB），解决启动期频繁杀空进程导致的不稳定
-- **优化**：dex2oat 首次启动使用 verify-only 模式，减少 CPU/IO 压力，加快首次启动
-- **优化**：启动后自动提升 system_server/surfaceflinger 进程优先级（oom_score_adj=-10）
-- **新增**：optimize_boot.sh 启动优化脚本，集成到 agent_autodeploy.sh，boot_completed 后自动执行
+### 其他说明
 
-### v3.8.2（2026-10-02）
-- **新增**：libhoudini 自动下载脚本（download_houdini.sh），支持 GitHub + ghproxy 多源，下载后自动解压校验
-- **新增**：翻译层 auto 模式 — gateway 后台线程每 30 秒扫描 logcat，检测到 Undefined instruction/SIGILL 自动写崩溃标记并重启切换到 houdini
-- **优化**：5 分钟防循环重启冷却机制，避免翻译层切换导致的反复重启
-- **修复**：tune_compose.sh 中 sed 删除命令过于粗暴，会误删含配置字符串的注释行，改为行首锚定匹配（共修复 6 处）
-
-### v3.8.1（2026-10-02）
-- **新增**：双翻译层框架 — 通过 bind mount 覆盖 /system/lib*/libnb.so 实现 ndk/houdini 切换，默认 ndk
-- **背景**：飞牛应用（com.trim.app，Flutter+Go）使用 ARMv8.1 指令（0xd5380000），Google libndk_translation 不支持导致 SIGILL 闪退；ro.dalvik.vm.native.bridge 是只读属性，运行时无法 setprop 修改
-
-### v3.8.0（2026-10-02）
-- **优化**：WebSocket 自动重连（指数退避 1s→30s）+ 25 秒心跳保活，提升连接稳定性
-- **优化**：沉浸式全屏 CSS/JS 增强，电脑端 object-fit:contain，手机端 cover，多选择器兼容不同版本穿云投屏
-- **优化**：TURN 配置优化（no-loopback-peers、bps-capacity、max-allocate-lifetime=3600 等）
-- **新增**：VAAPI 硬件编码动态检测（vainfo 含 EncSlice/EncPicture 才启用），不支持的机器保持 Google 软件编码，避免黑屏
-- **新增**：硬件解码 vainfo 检测（H264 VLD 支持才启用），不支持自动软解
-- **新增**：NVIDIA GPU 设备直通 + 驱动挂载支持
-- **新增**：智能 GPU 选择（Intel > AMD > NVIDIA 优先级）
-- **移除**：内存限制（8GB 内存不需要 mem_limit: 2g）
+1. **关于商标与标识**：redroid、穿云投屏、scrcpy、WebRTC 等名称及相关标识的商标权、著作权均归各自原作者或组织所有，本项目仅在技术集成层面使用这些名称进行说明，不主张任何商标权利，也不暗示与上述项目存在官方合作或背书关系。
+2. **关于项目背书**：本项目对上游开源组件的集成和使用，仅代表技术层面的兼容性适配，不代表上游作者对本项目的认可、推荐或背书；各上游组件的质量、安全性及更新维护由其原作者负责。
+3. **关于上游变更**：上游开源项目可能随版本迭代调整功能、接口或许可证条款，本项目将尽力跟进适配，但不对上游变更导致的兼容性问题或许可状态变化承担责任；如遇重大变更，建议以各上游项目官方公告为准。
+4. **关于组件完整性**：本应用运行时从公开容器仓库拉取上游官方镜像，不对镜像内代码进行修改或二次打包；如用户自行替换或修改上游镜像，由此产生的功能异常或合规问题由用户自行负责。
+5. **关于专利授权**：Apache 2.0 许可证包含贡献者的专利授权条款，MIT 和 BSD 许可证不涉及明确的专利授权；用户在使用、修改或再分发相关组件时，应自行评估专利风险。
+6. **关于出口管制**：本项目涉及的部分编解码、加密技术可能受某些国家或地区的出口管制法规约束，用户在跨境使用或再分发时，应确保遵守所在地的相关法律法规。
+7. **关于遗漏与勘误声明**：由于上游开源项目的依赖关系较为复杂，部分传递依赖或子组件的许可证信息、项目链接可能未能在本章节中逐一完整列举或准确标注。若您发现有应列而未列的开源项目、许可证状态有误，或项目链接存在错误，我们深表歉意，欢迎通过下方「问题、建议反馈链接和渠道」中的任意渠道（第 4 条上游组件专门反馈渠道除外）告知我们，我们将在核实后及时补充、更正。
 
 ---
 
