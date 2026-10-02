@@ -1119,20 +1119,71 @@ Or give a star to support the project.
 
 ### Open Source License
 
-- redroid: [Apache 2.0](http://www.apache.org/licenses)
-- scrcpy-over-webrtc (Scrcpy): See upstream project
-- This project's packaging scripts and configs: MIT
+This application pulls the following public images via Docker at runtime, without modifying, bundling, or redistributing their source code or binaries:
 
-Upstream component sources and license status see `LICENSE` file in package.
+#### 1. redroid (Android Container)
+- Project: https://github.com/remote-android/redroid-doc
+- Author: zhouziyang (remote-android organization)
+- License Status:
+  - redroid itself: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) (explicitly stated in upstream README)
+  - redroid-modules kernel module repo: [GPL-2.0](https://github.com/remote-android/redroid-modules/blob/master/LICENSE)
+  - In-container AOSP (Android Open Source Project): [Apache 2.0](https://source.android.com/setup/start/licenses)
+  - In-container Linux kernel related: GPL-2.0, Project: https://www.kernel.org/
+- Built-in translation layers:
+  - libndk_translation (Google official NDK translation layer): Google proprietary component, built into redroid image, license terms see Google related agreements
+  - libhoudini (Intel translation layer, auto-downloaded in v3.8.1+): Intel proprietary component, downloaded from public sources, license terms see Intel related agreements
+
+#### 2. scrcpy-over-webrtc (Cloud Phone Screen Service)
+- Project: https://github.com/hqw700/ScrcpyOverWebRTC
+- Author: hqw700 (buutuu)
+- License Status:
+  - Frontend source code (web-app): [MIT License](https://opensource.org/licenses/MIT)
+  - Official binary core components (server, Agent deployment package, APK runtime): For personal learning, technical research, and non-commercial testing only
+- Internal dependencies:
+  - scrcpy (Author: Genymobile): [Apache 2.0](https://github.com/Genymobile/scrcpy/blob/master/LICENSE), Project: https://github.com/Genymobile/scrcpy
+  - ya-webadb / Tango (Author: yume-chan): [MIT](https://github.com/yume-chan/ya-webadb/blob/master/LICENSE), Project: https://github.com/yume-chan/ya-webadb
+  - Pion WebRTC (Author: pion organization): [MIT](https://github.com/pion/webrtc/blob/master/LICENSE), Project: https://github.com/pion/webrtc
+  - xterm.js (Author: xtermjs organization): [MIT](https://github.com/xtermjs/xterm.js/blob/master/LICENSE), Project: https://github.com/xtermjs/xterm.js
+  - coturn TURN Server (Author: coturn project): [BSD 3-Clause](https://github.com/coturn/coturn/blob/master/LICENSE), Project: https://github.com/coturn/coturn
+
+#### 3. This Project's Packaging Scripts and Configs
+- Project: https://github.com/lin1740/fnos-android-emulator
+- Author: 键盘敲粥香 (lin1740)
+- License: [MIT License](https://opensource.org/licenses/MIT)
+  > Brief: The MIT License allows anyone to freely use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided that the above copyright notice and this permission notice are included in all copies or substantial portions of the software. The software is provided "AS IS" without any express or implied warranty.
+- Includes: docker-compose configs, install/upgrade scripts, gateway.py, status page, performance optimization scripts, etc. (all self-developed by this project, adapted for fnOS platform)
+- Project source code link: See the "Publisher" blue link on the app detail page in fnOS App Center, or the project link in the app description
+- Note: This application does not develop its own UI; the screen management page relies on scrcpy-over-webrtc's native UI, which is not within this project's modification scope
+
+> **License Notice**: scrcpy-over-webrtc official binary core components are for personal learning, technical research, and non-commercial testing only; please confirm authorization with the author before commercial use; libndk_translation and libhoudini are vendor proprietary components, only used with upstream images or auto-downloaded at runtime, not redistributed.
 
 ### Disclaimer
 
-1. This project is unofficial third-party app, provided "as is", use at your own risk.
-2. This project is for learning and research purposes only, must not be used for any illegal purpose.
-3. Developers not responsible for any data loss, system failure, service interruption etc. caused by using this app.
-4. Third-party components integrated in app (redroid, Scrcpy etc.) maintained by respective authors, their functionality and stability not controlled by this project.
-5. Users should backup important data themselves, this app doesn't guarantee security and integrity of data inside container.
-6. This app doesn't collect any user data, all data stored on user's local device.
+1. This project is an unofficial third-party application, provided "AS IS", use at your own risk.
+2. This project is for learning and research purposes only, and must not be used for any illegal purpose.
+3. The publisher is not responsible for any data loss, system failure, or service interruption caused by using this application.
+4. Third-party components integrated in the application (redroid, scrcpy-over-webrtc, etc.) are maintained by their respective authors, and their functionality, stability, and compliance are not controlled by this project.
+5. Users should back up important data themselves; this application does not guarantee the security and integrity of data in the container.
+6. This application does not collect any user data; all data is stored on the user's local device.
+
+### Open Source Obligations
+
+1. **GPL-2.0 Component Obligations**: redroid-modules (kernel modules) and in-container Linux kernel related code follow the GPL-2.0 license. This application only pulls the redroid image from public repositories at runtime, without modifying or redistributing its source code or binaries, therefore GPL-2.0 copyleft clauses are not triggered; if users modify, recompile, or redistribute the above GPL-2.0 components, they must comply with GPL-2.0 open source obligations, including but not limited to publishing modified source code, retaining copyright notices, and distributing under the same license.
+2. **Apache 2.0 Component Obligations**: Components following the Apache 2.0 license such as AOSP and scrcpy must retain copyright notices, license copies, and NOTICE files when redistributed.
+3. **Proprietary Components**: libndk_translation (Google) and libhoudini (Intel) are vendor proprietary components; this application does not redistribute them, only uses them with upstream images or auto-downloads at runtime; users should comply with the corresponding vendor's terms of use.
+4. **scrcpy-over-webrtc Components**: Frontend source code is under MIT license, freely modifiable; official binary core components are for personal learning, technical research, and non-commercial testing only, please confirm authorization with the author before commercial use.
+5. **This Project's Code**: Packaging scripts and configs are released under the MIT license, freely usable, modifiable, and distributable, with copyright and license notices retained.
+
+### Additional Notes
+
+1. **Trademarks and Logos**: The names, trademarks, and logos of redroid, scrcpy-over-webrtc, scrcpy, WebRTC, and other projects belong to their respective authors or organizations. This project uses these names only for technical integration descriptions, does not claim any trademark rights, and does not imply any official partnership or endorsement with these projects.
+2. **Project Endorsement**: The integration and use of upstream open source components in this project only represents technical compatibility adaptation, and does not represent the upstream authors' recognition, recommendation, or endorsement of this project; the quality, security, and maintenance of each upstream component are the responsibility of its original authors.
+3. **Upstream Changes**: Upstream open source projects may adjust features, interfaces, or license terms with version iterations. This project will try to follow up and adapt, but is not responsible for compatibility issues or license status changes caused by upstream changes; in case of major changes, please refer to the official announcements of each upstream project.
+4. **Component Integrity**: This application pulls upstream official images from public container repositories at runtime, and does not modify or repackage the code inside the images; if users replace or modify upstream images on their own, any functional anomalies or compliance issues resulting therefrom are the user's responsibility.
+5. **Patent Licensing**: The Apache 2.0 license includes patent grant clauses from contributors, while MIT and BSD licenses do not involve explicit patent grants; users should assess patent risks on their own when using, modifying, or redistributing related components.
+6. **Export Control**: Some codec and encryption technologies involved in this project may be subject to export control regulations of certain countries or regions; users should ensure compliance with relevant local laws and regulations when using or redistributing across borders.
+7. **Omission & Errata Notice**: Due to the complex dependency relationships of upstream open source projects, the license information, project links of some transitive dependencies or sub-components may not be fully listed or accurately noted in this section. If you find any open source project that should be listed but is omitted, any license status errors, or any incorrect project links, we sincerely apologize and welcome you to inform us through any of the "Feedback Links & Channels" below (except for the 4th channel, which is the dedicated feedback channel for upstream components). We will verify and supplement/correct it in a timely manner.
+8. **Source Code Release**: The packaging scripts and configs of this project are released under the MIT license, but the publication of source code may be handled at our discretion based on actual circumstances. For example, the source code of beta/inner-test versions may not be publicly available temporarily due to stability, security, or other reasons, while the source code of public release versions is usually published to the GitHub repository simultaneously. The actual content published in the GitHub repository (https://github.com/lin1740/fnos-android-emulator) shall prevail.
 
 ---
 
