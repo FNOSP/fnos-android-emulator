@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.8.3-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.5-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -67,6 +67,9 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **NVIDIA GPU Support (v3.8.0+)**: Auto-detects NVIDIA GPU and mounts devices and drivers, smart GPU selection priority Intel > AMD > NVIDIA
 - **Dual Translation Layer Auto-Management (v3.8.1+)**: Built-in libndk_translation (default) and libhoudini (auto-download), switch via bind mount over /system/lib*/libnb.so; auto mode detects ARMv8.1 instruction SIGILL crashes and switches to houdini, 5-minute anti-loop restart cooldown
 - **Boot Performance Optimization (v3.8.3+)**: lmkd threshold increased (max 315MB→3072MB) to reduce frequent process kills during boot, dex2oat uses verify-only mode for faster first boot, elevated system_server/surfaceflinger process priority
+- **Domestic App Performance Optimization (v3.8.5+)**: System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.): background process limit (4), disable auto-sync/background data/network scanning, CPU/GPU deep optimization, animation half-speed (0.5), lmkd memory management optimization
+- **Go Merged Daemon (v3.8.5+)**: Audio fix + resolution auto-switch merged into single androidemu_daemon process, reducing Go runtime memory footprint (~5-8MB saved)
+- **Optional Resource Limits (v3.8.5+)**: Pre-configured commented CPU/memory limits in docker-compose.yaml, users can enable based on NAS performance
 
 ---
 
@@ -452,6 +455,36 @@ Android serial console (`androidboot.console=0`) disabled by default, reducing p
 - **X86 devices**: Auto-detect `/dev/dri`, uses `gpu_mode=host` hardware acceleration when GPU present, 60fps
 - **ARM devices**: Auto uses `gpu_mode=guest` software rendering, 30fps (ARM usually no GPU passthrough)
 
+### 6. Domestic App Optimization (v3.8.5+)
+
+Domestic App Performance Optimization (v3.8.5+): System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.):
+
+| Optimization | Description |
+|--------------|-------------|
+| **Background process limit** | `background_process_limit=4`, system more aggressively reclaims excess processes |
+| **Disable auto-sync** | `auto_sync=0`, reduces background sync overhead |
+| **Disable background data** | `mobile_data_always_on=0`, prevents background data/CPU usage |
+| **Disable scanning** | WiFi/BLE scan off, reduces location and background wakeups |
+| **Disable network optimizers** | Turn off network recommendations, adaptive connectivity |
+| **Animation half-speed** | Window/transition/animator scale set to 0.5, smooth yet CPU-efficient |
+| **GPU forced rendering** | `debug.hwui.renderer=skiagl`, GPU renders UI |
+| **Layer composition optimization** | `disable_backpressure=1`, `latch_unsignaled=1`, reduces composition latency |
+| **Memory management optimization** | Adjusted lmkd thresholds, more aggressive background app memory reclamation |
+
+### 7. Optional Resource Limits (v3.8.5+)
+
+If your NAS has limited performance, enable resource limits in `docker-compose.yaml` (commented by default, uncomment to enable):
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '4.0'      # Max 4 CPU cores
+      memory: 4G       # Max 4GB memory
+```
+
+> Restart container after modification: `docker compose -f /vol1/@appcenter/androidemu/app/docker/docker-compose.yaml restart`
+
 ---
 
 ## Serial Console (Developer Debugging)
@@ -573,7 +606,7 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 - **Non-privileged alternative tested infeasible**: Non-privileged + device_cgroup_rule + mount binderfs + cap-add=ALL + seccomp=unconfined, container exits with ExitCode 0 silently, can't boot (redroid-doc issue #591 still open)
 - **Impact control**: Privilege only applies inside container (container root = Android system initialization needs), not equal to host root; app itself runs as `docker-androidemu` user, doesn't request host root
 
-### 2. Non-root App Process (v3.6.5+)
+### 2. Non-root App Process 
 
 - gateway.py, audio_fix.py and other background processes all run as `docker-androidemu` user
 - Auto-downgrade via `_drop_privileges()` function (auto-switch when uid=0)
@@ -794,6 +827,81 @@ A: Your current user is not in the docker group and lacks permission to access t
 sudo usermod -aG docker <your-username>
 ```
 > Note: After adding to the docker group, you must **exit the terminal and log back in** for it to take effect.
+
+### Q: How to configure multi-device resolution and switch dynamically?
+
+A: Since v3.8.4, multi-device resolution configuration is supported. During installation, you can separately set resolutions for **PC, phone, and tablet**. The container starts with the phone resolution by default, and you can switch dynamically during use (takes effect immediately, no container restart needed).
+
+**1. Set during installation (recommended)**
+
+In the "Resolution Settings" step of the installation wizard, fill in resolutions for each device (format: width×height, e.g., 1920×1080):
+- **PC**: e.g., 1920×1080 (landscape) or 1280×720
+- **Phone**: e.g., 720×1440 (9:18 bezel-less, default) or 720×1280 (9:16)
+- **Tablet**: e.g., 1200×2000 (3:5) or 800×1280
+
+Leave blank to use defaults for that device (PC 1920×1080, phone 720×1440, tablet 1200×2000); if all blank, defaults are used.
+
+**2. Auto-switch resolution **
+
+After installation, the app automatically starts a "resolution auto-switch daemon". When you open the Chuanyun Cast page on different devices, the page automatically detects the device type and reports it. The daemon then **automatically switches to the corresponding resolution** (takes effect immediately).
+
+- Opening on PC → auto-switches to PC resolution
+- Opening on phone → auto-switches to phone resolution
+- Opening on tablet → auto-switches to tablet resolution
+
+> Cooldown 60 seconds: after a switch, no further switches for 60 seconds to avoid affecting experience. When multiple devices open simultaneously, the most recently opened device takes precedence.
+
+**View auto-switch logs:**
+```bash
+cat /var/apps/androidemu/var/resolution_autoswitch.log
+```
+
+**3. Manually switch resolution**
+
+If auto-switching does not work as expected, you can manually run:
+```bash
+# Switch to PC resolution
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh pc
+
+# Switch to phone resolution
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh phone
+
+# Switch to tablet resolution
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh tablet
+
+# Specify custom resolution directly
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh 1080x1920
+```
+
+Switching is done via `adb shell wm size`, **takes effect immediately**, no container restart or reconnection needed.
+
+**3. View current configuration**
+```bash
+cat /var/apps/androidemu/var/resolution.conf
+```
+
+**4. Permanently change default resolution (modify compose)**
+
+To change the default resolution at container startup (takes effect after restart), edit the compose file:
+```bash
+nano /vol1/@appcenter/androidemu/docker/docker-compose.yaml
+```
+Find the `command` section of the `redroid` service and modify:
+```yaml
+- androidboot.redroid_width=720
+- androidboot.redroid_height=1600
+```
+Then restart the container:
+```bash
+cd /vol1/@appcenter/androidemu/docker
+docker compose up -d --force-recreate redroid
+```
+
+> **Notes**:
+> - The container can only use one resolution at a time; after switching, all connected clients will see the new resolution
+> - Dynamic switching does not delete data or installed apps
+> - When resolution ratio matches the device screen ratio, immersive borderless fullscreen is achieved
+> - 1080p and higher resolutions demand more NAS performance; low-spec devices are recommended to use 720p series
 
 ### Q: Container is laggy, frozen, unresponsive to clicks or gestures
 
@@ -1183,7 +1291,7 @@ This application pulls the following public images via Docker at runtime, withou
 5. **Patent Licensing**: The Apache 2.0 license includes patent grant clauses from contributors, while MIT and BSD licenses do not involve explicit patent grants; users should assess patent risks on their own when using, modifying, or redistributing related components.
 6. **Export Control**: Some codec and encryption technologies involved in this project may be subject to export control regulations of certain countries or regions; users should ensure compliance with relevant local laws and regulations when using or redistributing across borders.
 7. **Omission & Errata Notice**: Due to the complex dependency relationships of upstream open source projects, the license information, project links of some transitive dependencies or sub-components may not be fully listed or accurately noted in this section. If you find any open source project that should be listed but is omitted, any license status errors, or any incorrect project links, we sincerely apologize and welcome you to inform us through any of the "Feedback Links & Channels" below (except for the 4th channel, which is the dedicated feedback channel for upstream components). We will verify and supplement/correct it in a timely manner.
-8. **Source Code Release**: The packaging scripts and configs of this project are released under the MIT license, but the publication of source code may be handled at our discretion based on actual circumstances. For example, the source code of beta/inner-test versions may not be publicly available temporarily due to stability, security, or other reasons, while the source code of public release versions is usually published to the GitHub repository simultaneously. The actual content published in the GitHub repository (https://github.com/lin1740/fnos-android-emulator) shall prevail.
+8. **Source Code Release**: The packaging scripts and configs of this project are released under the MIT license, but the publication of source code may be handled at our discretion based on actual circumstances. For example, the source code of beta/inner-test versions may not be publicly available temporarily due to stability, security, or other reasons, while the source code of public release versions is usually published to this repository simultaneously. The actual content published in this repository shall prevail.
 
 ---
 

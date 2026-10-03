@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.8.3-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.5-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -67,6 +67,9 @@
 - **NVIDIA GPU 支持（v3.8.0+）**：自动检测 NVIDIA GPU 并挂载设备和驱动，智能 GPU 选择优先级 Intel > AMD > NVIDIA
 - **双翻译层自动管理（v3.8.1+）**：内置 libndk_translation（默认）和 libhoudini（自动下载），通过 bind mount 覆盖 /system/lib*/libnb.so 切换；auto 模式自动检测 ARMv8.1 指令 SIGILL 崩溃并切换到 houdini，5 分钟防循环重启冷却
 - **启动性能优化（v3.8.3+）**：lmkd 阈值调高（最高 315MB→3072MB）减少启动期频繁杀进程，dex2oat 首次启动用 verify-only 模式加快启动，提升 system_server/surfaceflinger 进程优先级
+- **国内 APP 性能优化（v3.8.5+）**：针对抖音/快手等国内 APP 占用高的问题，系统级限制后台进程数（4个）、禁用自动同步/后台数据/网络扫描、CPU/GPU 深度优化、动画半速（0.5）、lmkd 内存管理优化
+- **Go 合并守护进程（v3.8.5+）**：音频修复 + 分辨率自动切换合并为单个 androidemu_daemon 进程，减少 Go runtime 内存占用（约省 5-8MB）
+- **可选资源限制（v3.8.5+）**：docker-compose 中预置注释好的 CPU/内存限制配置，用户可根据 NAS 性能自行启用
 
 ---
 
@@ -453,6 +456,36 @@ webrtc 信令服务和 TURN 中继服务均以 `nice=-10` 启动（高于默认�
 - **X86 设备**：自动检测 `/dev/dri`，有 GPU 时使用 `gpu_mode=host` 硬件加速，60fps
 - **ARM 设备**：自动使用 `gpu_mode=guest` 软件渲染，30fps（ARM 通常无 GPU 直通）
 
+### 6. 国内 APP 专项优化（v3.8.5+）
+
+针对抖音、快手等国内 APP 后台服务多、占用高的问题，做了以下系统级优化：
+
+| 优化项 | 说明 |
+|--------|------|
+| **限制后台进程** | `background_process_limit=4`，超过后系统更积极回收 |
+| **禁用自动同步** | `auto_sync=0`，减少后台同步开销 |
+| **禁用后台数据** | `mobile_data_always_on=0`，防止后台偷跑流量和 CPU |
+| **禁用扫描** | WiFi/BLE 扫描关闭，减少定位和后台唤醒 |
+| **禁用网络优化** | 关闭网络推荐、自适应连接等后台服务 |
+| **动画半速** | 窗口/过渡/动画师缩放设为 0.5，既流畅又省 CPU |
+| **GPU 强制渲染** | `debug.hwui.renderer=skiagl`，用 GPU 渲染 UI |
+| **图层合成优化** | `disable_backpressure=1`、`latch_unsignaled=1`，减少合成延迟 |
+| **内存管理优化** | 调整 lmkd 阈值，更积极回收后台 APP 内存 |
+
+### 7. 可选资源限制（v3.8.5+）
+
+如果 NAS 性能有限，可在 `docker-compose.yaml` 中启用资源限制（默认注释，取消注释即可）：
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '4.0'      # 最多使用4核
+      memory: 4G       # 最多使用4GB内存
+```
+
+> 修改后需重启容器生效：`docker compose -f /vol1/@appcenter/androidemu/app/docker/docker-compose.yaml restart`
+
 ---
 
 ## 串口控制台（开发者调试）
@@ -589,7 +622,7 @@ WebRTC 接收 H.264 流 ←── TURN/STUN 中继 ←── scrcpy 编码 ←�
 - **非特权方案已实测不可行**：非特权 + device_cgroup_rule + 挂载 binderfs + cap-add=ALL + seccomp=unconfined，容器以 ExitCode 0 静默退出、无法开机（redroid-doc issue #591 至今为开放议题）
 - **影响面控制**：特权仅作用于容器内部（容器内 root = Android 系统自身初始化所需），不等于宿主 root；应用本体以 `docker-androidemu` 用户运行，不申请宿主 root
 
-### 2. 应用本体非 root 运行（v3.6.5+）
+### 2. 应用本体非 root 运行
 
 - gateway.py、audio_fix.py 等后台进程均以 `docker-androidemu` 用户运行
 - 通过 `_drop_privileges()` 函数实现自动降权（uid=0 时自动切换）
@@ -810,6 +843,81 @@ A: 当前用户不在 docker 组中，没有权限直接访问 Docker daemon。
 sudo usermod -aG docker <你的用户名>
 ```
 > 注意：加入 docker 组后需要**退出终端重新登录**才能生效。
+
+### Q: 如何设置多端分辨率并动态切换？
+
+A: v3.8.4 起支持多端分辨率配置。安装向导中可分别填写**电脑端、手机端、平板端**的分辨率，容器默认以手机端分辨率启动，使用过程中可通过脚本动态切换（即时生效，无需重启容器）。
+
+**1. 安装时设置（推荐）**
+
+安装向导的「分辨率设置」步骤中分别填写三端分辨率（格式：宽×高，如 1920×1080）：
+- **电脑端**：如 1920×1080（横屏）或 1280×720
+- **手机端**：如 720×1440（9:18 全面屏，默认）或 720×1280（9:16）
+- **平板端**：如 1200×2000（3:5）或 800×1280
+
+留空则该端使用默认值（电脑 1920×1080、手机 720×1440、平板 1200×2000）；三端都不填则全部使用默认。
+
+**2. 自动切换分辨率**
+
+安装后应用会自动启动「分辨率自动切换守护」，当你在不同设备上打开穿云投屏页面时，页面会自动检测设备类型并上报，守护脚本接收后**自动切换到对应分辨率**（即时生效）。
+
+- 电脑端打开 → 自动切换到电脑端分辨率
+- 手机端打开 → 自动切换到手机端分辨率
+- 平板端打开 → 自动切换到平板端分辨率
+
+> 冷却时间 60 秒：切换后 60 秒内不会再次切换，避免频繁切换影响体验。多个设备同时打开时，以最新打开的设备为准。
+
+**查看自动切换日志：**
+```bash
+cat /var/apps/androidemu/var/resolution_autoswitch.log
+```
+
+**3. 手动切换分辨率**
+
+如果自动切换不符合预期，可手动执行：
+```bash
+# 切换到电脑端分辨率
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh pc
+
+# 切换到手机端分辨率
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh phone
+
+# 切换到平板端分辨率
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh tablet
+
+# 直接指定自定义分辨率
+bash /vol1/@appcenter/androidemu/scripts/switch_resolution.sh 1080x1920
+```
+
+切换通过 `adb shell wm size` 实现，**即时生效**，不需要重启容器或重新连接。
+
+**3. 查看当前配置**
+```bash
+cat /var/apps/androidemu/var/resolution.conf
+```
+
+**4. 永久修改默认分辨率（修改 compose）**
+
+如果需要修改容器启动时的默认分辨率（重启后生效），编辑 compose 文件：
+```bash
+nano /vol1/@appcenter/androidemu/docker/docker-compose.yaml
+```
+找到 `redroid` 服务的 `command` 部分，修改：
+```yaml
+- androidboot.redroid_width=720
+- androidboot.redroid_height=1600
+```
+然后重启容器：
+```bash
+cd /vol1/@appcenter/androidemu/docker
+docker compose up -d --force-recreate redroid
+```
+
+> **注意**：
+> - 容器同一时间只能使用一个分辨率，切换后所有连接的客户端都会看到新分辨率
+> - 动态切换不丢失容器内数据和已安装应用
+> - 分辨率比例与设备屏幕一致时，可实现沉浸式真全屏（无黑边）
+> - 1080p 及以上分辨率对 NAS 性能要求较高，低配设备建议 720p 系列
 
 ### Q: 容器卡顿、无法点击或移动、一动不动
 
@@ -1211,7 +1319,7 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 5. **关于专利授权**：Apache 2.0 许可证包含贡献者的专利授权条款，MIT 和 BSD 许可证不涉及明确的专利授权；用户在使用、修改或再分发相关组件时，应自行评估专利风险。
 6. **关于出口管制**：本项目涉及的部分编解码、加密技术可能受某些国家或地区的出口管制法规约束，用户在跨境使用或再分发时，应确保遵守所在地的相关法律法规。
 7. **关于遗漏与勘误声明**：由于上游开源项目的依赖关系较为复杂，部分传递依赖或子组件的许可证信息、项目链接可能未能在本章节中逐一完整列举或准确标注。若您发现有应列而未列的开源项目、许可证状态有误，或项目链接存在错误，我们深表歉意，欢迎通过下方「问题、建议反馈链接和渠道」中的任意渠道（第 4 条上游组件专门反馈渠道除外）告知我们，我们将在核实后及时补充、更正。
-8. **关于源代码发布**：本项目的打包脚本和配置以 MIT 许可证开放，但源代码的发布可能基于实际情况酌情处理。例如，内测版本的源代码可能因稳定性、安全性或其他原因暂不公开，公测版本的源代码通常会同步发布至 GitHub 仓库。具体以 GitHub 仓库（https://github.com/lin1740/fnos-android-emulator）实际发布的内容为准。
+8. **关于源代码发布**：本项目的打包脚本和配置以 MIT 许可证开放，但源代码的发布可能基于实际情况酌情处理。例如，内测版本的源代码可能因稳定性、安全性或其他原因暂不公开，公测版本的源代码通常会同步发布至本仓库。具体以本仓库实际发布的内容为准。
 
 ---
 
