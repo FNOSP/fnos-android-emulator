@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.8.5-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -52,24 +52,25 @@
 - **串口控制台**：默认关闭以减少性能损耗，开发者可手动开启用于调试（见下文）
 - **穿云投屏 Agent 接入**：支持接入多台安卓设备/真机，统一管理
 - **简体中文 + 中国时区**：容器默认 `zh_CN` + `Asia/Shanghai`
-- **应用本体非 root 运行**：gateway.py 等后台进程以 `docker-androidemu` 用户运行（v3.6.5+），符合上架审核要求
+- **应用本体非 root 运行**：gateway.py 等后台进程以 `docker-androidemu` 用户运行，符合上架审核要求
 - **X86 / ARM 双平台**：自动检测架构和 GPU 能力，X86 用硬件加速，ARM 自动切软件渲染
 - **性能优化**：webrtc/turn 进程高优先级调度、精简后台服务、CPU 动态调频（见下文）
-- **安装/更新中断安全**：安装或更新中途取消会自动清理临时数据，避免占位导致下次无法安装（v3.6.0+）
+- **60fps 高帧率**：redroid 容器和 webrtc 编码均提升至 60fps，编码长边 1280，码率 4-16Mbps 动态调整，画面更流畅、触摸滑动更跟手
+- **安装/更新中断安全**：安装或更新中途取消会自动清理临时数据，避免占位导致下次无法安装
 - **自动容器检测**：网关自动检测安卓容器状态，容器启动后自动上线，无需手动操作
-- **安装预检查（v3.7.0+）**：安装前自动检测 binder 驱动、内存（<1GB 阻断）、Docker 可用性、磁盘空间（<2GB 阻断）、GPU 能力，不通过时给出明确原因，不再显示"执行脚本出错且原因未知"
-- **容器健康检查（v3.7.0+）**：实时检测 boot 状态、运行时长、OOM、surfaceflinger/agent 进程，自动识别"启动超时""内存不足被杀死""画面服务异常"等问题
-- **一键修复（v3.7.0+）**：状态页提供"修复GPU/画面""重启安卓容器""重启画面服务"三个按钮，无需 SSH 命令行即可自助修复常见问题
-- **友好状态页（v3.7.0+）**：上游服务不可用时显示美观的状态页（容器状态表格、常见问题排查、刷新按钮），不再是纯文本 "Bad Gateway"
-- **连接稳定性优化（v3.8.0+）**：WebSocket 自动重连（指数退避 1s→30s）+ 25 秒心跳保活，TURN 中继配置优化（no-loopback-peers、bps-capacity、max-allocate-lifetime=3600）
-- **沉浸式全屏（v3.8.0+）**：电脑端 object-fit:contain、手机端 cover，多选择器兼容不同版本穿云投屏，点击全屏键自动全部全屏
-- **VAAPI 硬件编解码动态检测（v3.8.0+）**：自动检测 GPU 是否支持 VAAPI 编码（vainfo 含 EncSlice/EncPicture）和解码（H264 VLD），支持才启用硬件加速，不支持自动回退 Google 软件编解码器，避免黑屏/花屏
-- **NVIDIA GPU 支持（v3.8.0+）**：自动检测 NVIDIA GPU 并挂载设备和驱动，智能 GPU 选择优先级 Intel > AMD > NVIDIA
-- **双翻译层自动管理（v3.8.1+）**：内置 libndk_translation（默认）和 libhoudini（自动下载），通过 bind mount 覆盖 /system/lib*/libnb.so 切换；auto 模式自动检测 ARMv8.1 指令 SIGILL 崩溃并切换到 houdini，5 分钟防循环重启冷却
-- **启动性能优化（v3.8.3+）**：lmkd 阈值调高（最高 315MB→3072MB）减少启动期频繁杀进程，dex2oat 首次启动用 verify-only 模式加快启动，提升 system_server/surfaceflinger 进程优先级
-- **国内 APP 性能优化（v3.8.5+）**：针对抖音/快手等国内 APP 占用高的问题，系统级限制后台进程数（4个）、禁用自动同步/后台数据/网络扫描、CPU/GPU 深度优化、动画半速（0.5）、lmkd 内存管理优化
-- **Go 合并守护进程（v3.8.5+）**：音频修复 + 分辨率自动切换合并为单个 androidemu_daemon 进程，减少 Go runtime 内存占用（约省 5-8MB）
-- **可选资源限制（v3.8.5+）**：docker-compose 中预置注释好的 CPU/内存限制配置，用户可根据 NAS 性能自行启用
+- **安装预检查**：安装前自动检测 binder 驱动、内存（<1GB 阻断）、Docker 可用性、磁盘空间（<2GB 阻断）、GPU 能力，不通过时给出明确原因，不再显示"执行脚本出错且原因未知"
+- **容器健康检查**：实时检测 boot 状态、运行时长、OOM、surfaceflinger/agent 进程，自动识别"启动超时""内存不足被杀死""画面服务异常"等问题
+- **一键修复**：状态页提供"修复GPU/画面""重启安卓容器""重启画面服务"三个按钮，无需 SSH 命令行即可自助修复常见问题
+- **友好状态页**：上游服务不可用时显示美观的状态页（容器状态表格、常见问题排查、刷新按钮），不再是纯文本 "Bad Gateway"
+- **连接稳定性优化**：WebSocket 自动重连（指数退避 1s→30s）+ 25 秒心跳保活，TURN 中继配置优化（no-loopback-peers、bps-capacity、max-allocate-lifetime=3600）
+- **沉浸式全屏**：电脑端 object-fit:contain、手机端 cover，多选择器兼容不同版本穿云投屏，点击全屏键自动全部全屏
+- **VAAPI 硬件编解码动态检测**：自动检测 GPU 是否支持 VAAPI 编码（vainfo 含 EncSlice/EncPicture）和解码（H264 VLD），支持才启用硬件加速，不支持自动回退 Google 软件编解码器，避免黑屏/花屏
+- **NVIDIA GPU 支持**：自动检测 NVIDIA GPU 并挂载设备和驱动，智能 GPU 选择优先级 Intel > AMD > NVIDIA
+- **双翻译层自动管理**：内置 libndk_translation（默认）和 libhoudini（自动下载），通过 bind mount 覆盖 /system/lib*/libnb.so 切换；auto 模式自动检测 ARMv8.1 指令 SIGILL 崩溃并切换到 houdini，5 分钟防循环重启冷却
+- **启动性能优化**：lmkd 阈值调高（最高 315MB→3072MB）减少启动期频繁杀进程，dex2oat 首次启动用 verify-only 模式加快启动，提升 system_server/surfaceflinger 进程优先级
+- **国内 APP 性能优化**：针对抖音/快手等国内 APP 占用高的问题，系统级限制后台进程数（4个）、禁用自动同步/后台数据/网络扫描、CPU/GPU 深度优化、动画半速（0.5）、lmkd 内存管理优化
+- **Go 合并守护进程**：音频修复 + 分辨率自动切换合并为单个 androidemu_daemon 进程，减少 Go runtime 内存占用（约省 5-8MB）
+- **可选资源限制**：docker-compose 中预置注释好的 CPU/内存限制配置，用户可根据 NAS 性能自行启用
 
 ---
 
@@ -454,9 +455,9 @@ webrtc 信令服务和 TURN 中继服务均以 `nice=-10` 启动（高于默认�
 ### 5. GPU 硬件加速
 
 - **X86 设备**：自动检测 `/dev/dri`，有 GPU 时使用 `gpu_mode=host` 硬件加速，60fps
-- **ARM 设备**：自动使用 `gpu_mode=guest` 软件渲染，30fps（ARM 通常无 GPU 直通）
+- **ARM 设备**：自动使用 `gpu_mode=guest` 软件渲染，60fps（统一高帧率，低配设备如感觉卡顿可在 compose 中改回 30fps）
 
-### 6. 国内 APP 专项优化（v3.8.5+）
+### 6. 国内 APP 专项优化
 
 针对抖音、快手等国内 APP 后台服务多、占用高的问题，做了以下系统级优化：
 
@@ -472,7 +473,7 @@ webrtc 信令服务和 TURN 中继服务均以 `nice=-10` 启动（高于默认�
 | **图层合成优化** | `disable_backpressure=1`、`latch_unsignaled=1`，减少合成延迟 |
 | **内存管理优化** | 调整 lmkd 阈值，更积极回收后台 APP 内存 |
 
-### 7. 可选资源限制（v3.8.5+）
+### 7. 可选资源限制
 
 如果 NAS 性能有限，可在 `docker-compose.yaml` 中启用资源限制（默认注释，取消注释即可）：
 
@@ -569,7 +570,7 @@ androidemu 从硬件到浏览器画面共经过 **3 个核心翻译/转换层**�
 | 模式 | 适用场景 | 原理 | 帧率 |
 |------|----------|------|------|
 | GPU 直通（guest） | X86 有核显/独显 | Android 的 OpenGL ES 指令直接发给宿主 GPU 驱动，几乎无翻译开销 | 60fps |
-| 软件渲染（swiftshader） | 无 GPU / ARM 设备 | **swiftshader** 把 OpenGL ES 指令翻译成 CPU 指令执行，有翻译开销 | 30fps |
+| 软件渲染（swiftshader） | 无 GPU / ARM 设备 | **swiftshader** 把 OpenGL ES 指令翻译成 CPU 指令执行，有翻译开销 | 60fps（低配设备可改回 30fps） |
 
 - 安装脚本自动检测宿主 GPU 能力，有 `/dev/dri` 时用 GPU 直通，否则自动回退软件渲染
 - ARM 设备默认使用软件渲染（swiftshader）

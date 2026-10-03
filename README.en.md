@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.8.5-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -52,24 +52,25 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Serial Console**: Disabled by default to reduce performance overhead, developers can manually enable for debugging (see below)
 - **Scrcpy Agent Integration**: Support connecting multiple Android devices/real phones, unified management
 - **Simplified Chinese + China Timezone**: Container defaults to `zh_CN` + `Asia/Shanghai`
-- **Non-root App Process**: gateway.py and other background processes run as `docker-androidemu` user (v3.6.5+), compliant with app store audit requirements
+- **Non-root App Process**: gateway.py and other background processes run as `docker-androidemu` user , compliant with app store audit requirements
 - **X86 / ARM Dual Platform**: Auto-detect architecture and GPU capabilities, X86 uses hardware acceleration, ARM auto-switches to software rendering
 - **Performance Optimization**: webrtc/turn process high-priority scheduling, streamlined background services, CPU dynamic frequency scaling (see below)
-- **Safe Installation/Update Interruption**: Auto-cleanup of temporary data if installation or update is cancelled midway, preventing placeholder issues that block future installations (v3.6.0+)
+- **60fps High Frame Rate**: Both redroid container and webrtc encoding upgraded to 60fps, encoding long edge 1280, bitrate 4-16Mbps dynamic adjustment, smoother video and more responsive touch/swipe
+- **Safe Installation/Update Interruption**: Auto-cleanup of temporary data if installation or update is cancelled midway, preventing placeholder issues that block future installations 
 - **Auto Container Detection**: Gateway auto-detects Android container status, container automatically comes online after startup, no manual operation needed
-- **Installation Pre-check (v3.7.0+)**: Auto-detects binder driver, memory (<1GB blocks), Docker availability, disk space (<2GB blocks), GPU capability before installation. Gives clear reasons on failure instead of generic "script execution error with unknown reason"
-- **Container Health Check (v3.7.0+)**: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
-- **One-Click Fix (v3.7.0+)**: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
-- **Friendly Status Page (v3.7.0+)**: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
-- **Connection Stability Optimization (v3.8.0+)**: WebSocket auto-reconnect (exponential backoff 1s→30s) + 25s heartbeat keepalive, TURN relay config optimization (no-loopback-peers, bps-capacity, max-allocate-lifetime=3600)
-- **Immersive Fullscreen (v3.8.0+)**: Desktop object-fit:contain, mobile cover, multi-selector compatible with different scrcpy-over-webrtc versions, click fullscreen button for true fullscreen
-- **VAAPI Hardware Codec Dynamic Detection (v3.8.0+)**: Auto-detects GPU VAAPI encoding (vainfo with EncSlice/EncPicture) and decoding (H264 VLD) support, enables hardware acceleration only when supported, auto-fallback to Google software codecs to avoid black screen/garbled video
-- **NVIDIA GPU Support (v3.8.0+)**: Auto-detects NVIDIA GPU and mounts devices and drivers, smart GPU selection priority Intel > AMD > NVIDIA
-- **Dual Translation Layer Auto-Management (v3.8.1+)**: Built-in libndk_translation (default) and libhoudini (auto-download), switch via bind mount over /system/lib*/libnb.so; auto mode detects ARMv8.1 instruction SIGILL crashes and switches to houdini, 5-minute anti-loop restart cooldown
-- **Boot Performance Optimization (v3.8.3+)**: lmkd threshold increased (max 315MB→3072MB) to reduce frequent process kills during boot, dex2oat uses verify-only mode for faster first boot, elevated system_server/surfaceflinger process priority
-- **Domestic App Performance Optimization (v3.8.5+)**: System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.): background process limit (4), disable auto-sync/background data/network scanning, CPU/GPU deep optimization, animation half-speed (0.5), lmkd memory management optimization
-- **Go Merged Daemon (v3.8.5+)**: Audio fix + resolution auto-switch merged into single androidemu_daemon process, reducing Go runtime memory footprint (~5-8MB saved)
-- **Optional Resource Limits (v3.8.5+)**: Pre-configured commented CPU/memory limits in docker-compose.yaml, users can enable based on NAS performance
+- **Installation Pre-check **: Auto-detects binder driver, memory (<1GB blocks), Docker availability, disk space (<2GB blocks), GPU capability before installation. Gives clear reasons on failure instead of generic "script execution error with unknown reason"
+- **Container Health Check **: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
+- **One-Click Fix **: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
+- **Friendly Status Page **: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
+- **Connection Stability Optimization **: WebSocket auto-reconnect (exponential backoff 1s→30s) + 25s heartbeat keepalive, TURN relay config optimization (no-loopback-peers, bps-capacity, max-allocate-lifetime=3600)
+- **Immersive Fullscreen **: Desktop object-fit:contain, mobile cover, multi-selector compatible with different scrcpy-over-webrtc versions, click fullscreen button for true fullscreen
+- **VAAPI Hardware Codec Dynamic Detection **: Auto-detects GPU VAAPI encoding (vainfo with EncSlice/EncPicture) and decoding (H264 VLD) support, enables hardware acceleration only when supported, auto-fallback to Google software codecs to avoid black screen/garbled video
+- **NVIDIA GPU Support **: Auto-detects NVIDIA GPU and mounts devices and drivers, smart GPU selection priority Intel > AMD > NVIDIA
+- **Dual Translation Layer Auto-Management **: Built-in libndk_translation (default) and libhoudini (auto-download), switch via bind mount over /system/lib*/libnb.so; auto mode detects ARMv8.1 instruction SIGILL crashes and switches to houdini, 5-minute anti-loop restart cooldown
+- **Boot Performance Optimization **: lmkd threshold increased (max 315MB→3072MB) to reduce frequent process kills during boot, dex2oat uses verify-only mode for faster first boot, elevated system_server/surfaceflinger process priority
+- **Domestic App Performance Optimization **: System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.): background process limit (4), disable auto-sync/background data/network scanning, CPU/GPU deep optimization, animation half-speed (0.5), lmkd memory management optimization
+- **Go Merged Daemon **: Audio fix + resolution auto-switch merged into single androidemu_daemon process, reducing Go runtime memory footprint (~5-8MB saved)
+- **Optional Resource Limits **: Pre-configured commented CPU/memory limits in docker-compose.yaml, users can enable based on NAS performance
 
 ---
 
@@ -453,11 +454,11 @@ Android serial console (`androidboot.console=0`) disabled by default, reducing p
 ### 5. GPU Hardware Acceleration
 
 - **X86 devices**: Auto-detect `/dev/dri`, uses `gpu_mode=host` hardware acceleration when GPU present, 60fps
-- **ARM devices**: Auto uses `gpu_mode=guest` software rendering, 30fps (ARM usually no GPU passthrough)
+- **ARM devices**: Auto uses `gpu_mode=guest` software rendering, 60fps (unified high frame rate; low-end devices can revert to 30fps in compose if laggy)
 
-### 6. Domestic App Optimization (v3.8.5+)
+### 6. Domestic App Optimization 
 
-Domestic App Performance Optimization (v3.8.5+): System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.):
+Domestic App Performance Optimization : System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.):
 
 | Optimization | Description |
 |--------------|-------------|
@@ -471,7 +472,7 @@ Domestic App Performance Optimization (v3.8.5+): System-level optimizations for 
 | **Layer composition optimization** | `disable_backpressure=1`, `latch_unsignaled=1`, reduces composition latency |
 | **Memory management optimization** | Adjusted lmkd thresholds, more aggressive background app memory reclamation |
 
-### 7. Optional Resource Limits (v3.8.5+)
+### 7. Optional Resource Limits 
 
 If your NAS has limited performance, enable resource limits in `docker-compose.yaml` (commented by default, uncomment to enable):
 
@@ -553,7 +554,7 @@ androidemu goes through **3 core translation/conversion layers** from hardware t
 | Mode | Scenario | Mechanism | FPS |
 |------|----------|-----------|-----|
 | GPU passthrough (guest) | X86 with iGPU/dGPU | Android OpenGL ES commands sent directly to host GPU driver, almost no translation overhead | 60fps |
-| Software rendering (swiftshader) | No GPU / ARM devices | **swiftshader** translates OpenGL ES into CPU instructions, with translation overhead | 30fps |
+| Software rendering (swiftshader) | No GPU / ARM devices | **swiftshader** translates OpenGL ES into CPU instructions, with translation overhead | 60fps (low-end devices can revert to 30fps) |
 
 - Install script automatically detects host GPU capability; uses GPU passthrough when `/dev/dri` exists, otherwise falls back to software rendering
 - ARM devices use software rendering (swiftshader) by default
