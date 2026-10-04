@@ -1262,8 +1262,8 @@ This application pulls the following public images via Docker at runtime, withou
 #### 3. This Project's Packaging Scripts and Configs
 - Project: https://github.com/lin1740/fnos-android-emulator
 - Author: 键盘敲粥香 (lin1740)
-- License: [MIT License](https://opensource.org/licenses/MIT)
-  > Brief: The MIT License allows anyone to freely use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided that the above copyright notice and this permission notice are included in all copies or substantial portions of the software. The software is provided "AS IS" without any express or implied warranty.
+- License: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+  > Brief: The Apache License 2.0 allows anyone to freely use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided that copyright notices, license copies, and NOTICE files (if any) are retained, and modifications to original files are stated. The software is provided "AS IS" without any express or implied warranty. This license includes explicit patent grant terms.
 - Includes: docker-compose configs, install/upgrade scripts, gateway.py, status page, performance optimization scripts, etc. (all self-developed by this project, adapted for fnOS platform)
 - Project source code link: See the "Publisher" blue link on the app detail page in fnOS App Center, or the project link in the app description
 - Note: This application does not develop its own UI; the screen management page relies on scrcpy-over-webrtc's native UI, which is not within this project's modification scope
@@ -1286,7 +1286,7 @@ This application pulls the following public images via Docker at runtime, withou
 3. **Proprietary Components**: libndk_translation (Google) and libhoudini (Intel) are vendor proprietary components; this application does not redistribute them, only uses them with upstream images or auto-downloads at runtime; users should comply with the corresponding vendor's terms of use.
 4. **scrcpy-over-webrtc Components**: Frontend source code is under MIT license, freely modifiable; official binary core components are for personal learning, technical research, and non-commercial testing only.
 ⚠️ **Commercial Use Warning**: If you plan to use this software in any commercial environment (including but not limited to internal corporate commercial use, providing commercial cloud phone services to external parties, etc.), you must contact upstream author hqw700 in advance to obtain commercial authorization, or replace the core components with open-source alternatives that permit commercial use.
-5. **This Project's Code**: Packaging scripts and configs are released under the MIT license, freely usable, modifiable, and distributable, with copyright and license notices retained.
+5. **This Project's Code**: Packaging scripts and configs are released under the Apache License 2.0, freely usable, modifiable, and distributable, with copyright notices, license copies, and NOTICE files (if any) retained, and modifications to original files stated.
 
 ### Additional Notes
 
@@ -1297,7 +1297,7 @@ This application pulls the following public images via Docker at runtime, withou
 5. **Patent Licensing**: The Apache 2.0 license includes patent grant clauses from contributors, while MIT and BSD licenses do not involve explicit patent grants; users should assess patent risks on their own when using, modifying, or redistributing related components.
 6. **Export Control**: Some codec and encryption technologies involved in this project may be subject to export control regulations of certain countries or regions; users should ensure compliance with relevant local laws and regulations when using or redistributing across borders.
 7. **Omission & Errata Notice**: Due to the complex dependency relationships of upstream open source projects, the license information, project links of some transitive dependencies or sub-components may not be fully listed or accurately noted in this section. If you find any open source project that should be listed but is omitted, any license status errors, or any incorrect project links, we sincerely apologize and welcome you to inform us through any of the "Feedback Links & Channels" below (except for the 4th channel, which is the dedicated feedback channel for upstream components). We will verify and supplement/correct it in a timely manner.
-8. **Source Code Release**: The packaging scripts and configs of this project are released under the MIT license, but the publication of source code may be handled at our discretion based on actual circumstances. For example, the source code of beta/inner-test versions may not be publicly available temporarily due to stability, security, or other reasons, while the source code of public release versions is usually published to this repository simultaneously. The actual content published in this repository shall prevail.
+8. **Source Code Release**: The packaging scripts and configs of this project are released under the Apache License 2.0, but the publication of source code may be handled at our discretion based on actual circumstances. For example, the source code of beta/inner-test versions may not be publicly available temporarily due to stability, security, or other reasons, while the source code of public release versions is usually published to this repository simultaneously. The actual content published in this repository shall prevail.
 
 ---
 
