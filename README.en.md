@@ -679,7 +679,7 @@ A: First check if the **binder driver** is installed:
 - **x86 devices**: Install the "binder_linux driver" dependency app from the fnOS App Center first, which creates the `/dev/binder` device node, then install this app
 - **ARM devices**: Most devices have binder built into the kernel (e.g., RK3588), but some stripped kernels may not have it enabled. Verify kernel support for `CONFIG_ANDROID_BINDER_IPC` / binderfs
 
-If the driver is already installed (or the ARM device natively supports it) but this error still appears, please feedback via any link in the "Feedback Links & Channels" section below so we can investigate the specific cause.
+If the driver is already installed (or the ARM device natively supports it) but this error still appears, please feedback via any link in the "Feedback Links & Channels" section below, and include `/var/apps/androidemu/var/uninstall_init.log` or the corresponding installation log so we can investigate the specific cause.
 
 ### Q: Can't open after installation, page shows 400 error (may affect multiple apps simultaneously)
 
@@ -755,7 +755,7 @@ http://<NAS_IP>:8443
 
 ### Q: Shows "Unauthorized" or "0 devices online" after opening
 
-A: This is Scrcpy License authorization prompt. Newly installed devices currently have 20 devices 3-month free trial (from Nov 1, 2026, expires to 10 devices, other basic features all free). Wait for container to fully start (~1-2 minutes) then refresh page. If still unauthorized, check if container is running:
+A: This is Scrcpy License authorization prompt. Newly installed devices currently have a 20-device 3-month free trial (this offer is valid until Nov 1, 2026; after expiration, the free quota will be reduced to 10 devices; other basic features remain unaffected). Wait for container to fully start (~1-2 minutes) then refresh page. If still unauthorized, check if container is running:
 ```bash
 docker ps --filter name=androidemu
 ```
@@ -1277,14 +1277,15 @@ This application pulls the following public images via Docker at runtime, withou
 3. The publisher is not responsible for any data loss, system failure, or service interruption caused by using this application.
 4. Third-party components integrated in the application (redroid, scrcpy-over-webrtc, etc.) are maintained by their respective authors, and their functionality, stability, and compliance are not controlled by this project.
 5. Users should back up important data themselves; this application does not guarantee the security and integrity of data in the container.
-6. This application does not collect any user data; all data is stored on the user's local device.
+6. This application itself does not actively collect your personal privacy data; all runtime data is stored on your local device. However, please note that when using third-party authorized services such as scrcpy-over-webrtc, necessary data such as your device identifier and network requests will be sent to upstream official servers for authorization verification and signaling connections. Please refer to the upstream service's privacy policy for details.
 
 ### Open Source Obligations
 
-1. **GPL-2.0 Component Obligations**: redroid-modules (kernel modules) and in-container Linux kernel related code follow the GPL-2.0 license. This application only pulls the redroid image from public repositories at runtime, without modifying or redistributing its source code or binaries, therefore GPL-2.0 copyleft clauses are not triggered; if users modify, recompile, or redistribute the above GPL-2.0 components, they must comply with GPL-2.0 open source obligations, including but not limited to publishing modified source code, retaining copyright notices, and distributing under the same license.
+1. **GPL-2.0 Component Obligations**: redroid-modules (kernel modules) and in-container Linux kernel related code follow the GPL-2.0 license. This application only pulls the redroid image from public repositories at runtime, without modifying or redistributing its source code or binaries. Legally, this constitutes "mere aggregation" and does not constitute a derivative work. However, if users modify, recompile, or redistribute the above GPL-2.0 components, they must strictly comply with GPL-2.0 open source obligations (including publishing modified source code, retaining copyright notices, etc.).
 2. **Apache 2.0 Component Obligations**: Components following the Apache 2.0 license such as AOSP and scrcpy must retain copyright notices, license copies, and NOTICE files when redistributed.
 3. **Proprietary Components**: libndk_translation (Google) and libhoudini (Intel) are vendor proprietary components; this application does not redistribute them, only uses them with upstream images or auto-downloads at runtime; users should comply with the corresponding vendor's terms of use.
-4. **scrcpy-over-webrtc Components**: Frontend source code is under MIT license, freely modifiable; official binary core components are for personal learning, technical research, and non-commercial testing only, please confirm authorization with the author before commercial use.
+4. **scrcpy-over-webrtc Components**: Frontend source code is under MIT license, freely modifiable; official binary core components are for personal learning, technical research, and non-commercial testing only.
+⚠️ **Commercial Use Warning**: If you plan to use this software in any commercial environment (including but not limited to internal corporate commercial use, providing commercial cloud phone services to external parties, etc.), you must contact upstream author hqw700 in advance to obtain commercial authorization, or replace the core components with open-source alternatives that permit commercial use.
 5. **This Project's Code**: Packaging scripts and configs are released under the MIT license, freely usable, modifiable, and distributable, with copyright and license notices retained.
 
 ### Additional Notes
