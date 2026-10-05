@@ -820,6 +820,39 @@ Check webrtc container logs:
 docker logs androidemu-webrtc --tail 50
 ```
 
+### Q: Google Play Store crashes / Can't use Google services
+
+A: **Do NOT manually install GMS in the Standard Edition**. The Standard Edition image does not include Google Services Framework or system signatures, so manually installed Play Store and Play Services will crash due to missing system-level permissions and signatures.
+
+**Correct approach:**
+1. Uninstall the current Standard Edition (choose "Keep data" during uninstall — installed apps and data will not be lost; if you choose "Delete data", all data inside the Android container will be cleared)
+2. Reinstall and select **GMS Edition** in the installation wizard
+3. GMS Edition includes Google Services Framework, Google Play Store, and Google Play Services, which work normally
+4. Users in China need to configure a network proxy themselves, otherwise Google services cannot connect to servers
+
+> GMS Edition and Standard Edition share the exact same base system. All configurations, scripts, and optimizations are fully compatible, and the data volume is also compatible. Switching editions will not lose installed apps or data.
+
+### Q: Already installed Standard Edition, how to switch to GMS Edition?
+
+A: In the App Center, first uninstall the current Standard Edition (choose "Keep data" during uninstall), then reinstall and select GMS Edition in the installation wizard. The Android data volume (androidemu-data) will be preserved, and installed apps and data will not be lost. GMS Edition will automatically initialize Google services on first boot, taking about 1-2 minutes.
+
+> **Note**: Be sure to choose "Keep data" during uninstall. If you choose "Delete data", all apps and data inside the Android container will be cleared. The upgrade process does not support switching editions — you must switch via "Keep data uninstall → Reinstall".
+
+### Q: What's the difference between GMS Edition and Standard Edition?
+
+A:
+
+| Comparison | Standard Edition | GMS Edition |
+|------------|------------------|-------------|
+| System | Pure AOSP | AOSP + Google Services |
+| Google Play Store | None | Built-in |
+| Google Play Services | None | Built-in |
+| Google account login | Not supported | Supported (requires network environment) |
+| Image size | ~2GB | ~2.2GB |
+| Memory usage | Lower | Slightly higher (Google services run in background) |
+| Direct use in China | Yes | Requires proxy configuration |
+| Configs/scripts/optimizations | All compatible | All compatible |
+
 ### Q: Terminal docker commands fail with `permission denied while trying to connect to the Docker daemon socket`
 
 A: Your current user is not in the docker group and lacks permission to access the Docker daemon directly.
@@ -1018,6 +1051,17 @@ Step 6: Confirm agent is running (returns PID means success)
 ```bash
 docker exec androidemu-android pidof cloudphone-agent
 ```
+
+### Q: Android container starts very slowly (over 5 minutes), memory fluctuates a lot, system unstable
+
+A: Versions before v3.8.3 had an issue with lmkd (Low Memory Killer Daemon) thresholds being too low: the default maximum threshold was only 315MB, which was too aggressive for large memory systems, causing frequent killing of empty processes during startup and repeated restarts of system services. This manifested as slow startup, memory fluctuating between 2.0-2.5GB, and the device staying offline for a long time.
+
+**Fixed in v3.8.3+**: lmkd thresholds raised to 512/768/1024/1280/2048/3072MB, dex2oat uses verify-only mode on first boot to speed up startup, and key process priorities are automatically raised after boot. Upgrading to v3.8.3+ will resolve this.
+
+If the problem persists, please check:
+1. Host available memory ≥2GB (`free -h`)
+2. Whether other apps are consuming large amounts of memory (e.g., fnOS Photos, downloads, etc.)
+3. Container logs for OOM or crashes (`docker logs androidemu-android --tail 50`)
 
 ### Q: WebRTC connection fails, black screen, or endless loading
 
@@ -1243,6 +1287,15 @@ This application pulls the following public images via Docker at runtime, withou
   - redroid-modules kernel module repo: [GPL-2.0](https://github.com/remote-android/redroid-modules/blob/master/LICENSE)
   - In-container AOSP (Android Open Source Project): [Apache 2.0](https://source.android.com/setup/start/licenses)
   - In-container Linux kernel related: GPL-2.0, Project: https://www.kernel.org/
+- Major in-container AOSP components (only important components listed, complete list subject to AOSP official statements):
+  - Bionic (Android C standard library): BSD, Project: https://android.googlesource.com/platform/bionic/
+  - Skia (2D graphics engine): BSD, Project: https://skia.org/
+  - Chromium (WebView browser engine): BSD / GPL / LGPL mixed, Project: https://www.chromium.org/
+  - OpenSSL (cryptography library): Apache 2.0, Project: https://www.openssl.org/
+  - zlib (compression library): zlib License, Project: https://zlib.net/
+  - libpng (PNG image library): libpng License, Project: http://www.libpng.org/
+  - FreeType (font rendering library): FreeType License / GPL, Project: https://www.freetype.org/
+  - FFmpeg (media codec, some versions): LGPL / GPL, Project: https://ffmpeg.org/
 - Built-in translation layers:
   - libndk_translation (Google official NDK translation layer): Google proprietary component, built into redroid image, license terms see Google related agreements
   - libhoudini (Intel translation layer, auto-downloaded in v3.8.1+): Intel proprietary component, downloaded from public sources, license terms see Intel related agreements
@@ -1253,19 +1306,24 @@ This application pulls the following public images via Docker at runtime, withou
 - License Status:
   - Frontend source code (web-app): [MIT License](https://opensource.org/licenses/MIT)
   - Official binary core components (server, Agent deployment package, APK runtime): For personal learning, technical research, and non-commercial testing only
-- Internal dependencies:
+- Major direct dependencies:
   - scrcpy (Author: Genymobile): [Apache 2.0](https://github.com/Genymobile/scrcpy/blob/master/LICENSE), Project: https://github.com/Genymobile/scrcpy
   - ya-webadb / Tango (Author: yume-chan): [MIT](https://github.com/yume-chan/ya-webadb/blob/master/LICENSE), Project: https://github.com/yume-chan/ya-webadb
   - Pion WebRTC (Author: pion organization): [MIT](https://github.com/pion/webrtc/blob/master/LICENSE), Project: https://github.com/pion/webrtc
   - xterm.js (Author: xtermjs organization): [MIT](https://github.com/xtermjs/xterm.js/blob/master/LICENSE), Project: https://github.com/xtermjs/xterm.js
   - coturn TURN Server (Author: coturn project): [BSD 3-Clause](https://github.com/coturn/coturn/blob/master/LICENSE), Project: https://github.com/coturn/coturn
+- Major transitive dependencies (only important components listed, complete list subject to each project's official statements):
+  - Go language runtime and standard library: BSD, Project: https://go.dev/
+  - Frontend frameworks and utility libraries (React/Vue, etc.): MIT, see frontend package.json for details
+  - WebRTC related Go libraries (pion series): MIT, Project: https://github.com/pion
+  - Logging, config, WebSocket and other Go third-party libraries: MIT / Apache 2.0, see go.mod for details
 
 #### 3. This Project's Packaging Scripts and Configs
 - Project: https://github.com/lin1740/fnos-android-emulator
 - Author: 键盘敲粥香 (lin1740)
 - License: [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
   > Brief: The Apache License 2.0 allows anyone to freely use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided that copyright notices, license copies, and NOTICE files (if any) are retained, and modifications to original files are stated. The software is provided "AS IS" without any express or implied warranty. This license includes explicit patent grant terms.
-- Includes: docker-compose configs, install/upgrade scripts, gateway.py, status page, performance optimization scripts, etc. (all self-developed by this project, adapted for fnOS platform)
+- Includes: docker-compose configs, install/upgrade scripts, gateway.py, status page, performance optimization scripts, Go daemon (androidemu_daemon, responsible for audio fix and resolution auto-switching), etc. (all self-developed by this project, adapted for fnOS platform)
 - Project source code link: See the "Publisher" blue link on the app detail page in fnOS App Center, or the project link in the app description
 - Note: This application does not develop its own UI; the screen management page relies on scrcpy-over-webrtc's native UI, which is not within this project's modification scope
 
@@ -1284,10 +1342,11 @@ This application pulls the following public images via Docker at runtime, withou
 
 1. **GPL-2.0 Component Obligations**: redroid-modules (kernel modules) and in-container Linux kernel related code follow the GPL-2.0 license. This application only pulls the redroid image from public repositories at runtime, without modifying or redistributing its source code or binaries. Legally, this constitutes "mere aggregation" and does not constitute a derivative work. However, if users modify, recompile, or redistribute the above GPL-2.0 components, they must strictly comply with GPL-2.0 open source obligations (including publishing modified source code, retaining copyright notices, etc.).
 2. **Apache 2.0 Component Obligations**: Components following the Apache 2.0 license such as AOSP and scrcpy must retain copyright notices, license copies, and NOTICE files when redistributed.
-3. **Proprietary Components**: libndk_translation (Google) and libhoudini (Intel) are vendor proprietary components; this application does not redistribute them, only uses them with upstream images or auto-downloads at runtime; users should comply with the corresponding vendor's terms of use.
-4. **scrcpy-over-webrtc Components**: Frontend source code is under MIT license, freely modifiable; official binary core components are for personal learning, technical research, and non-commercial testing only.
+3. **MIT / BSD Component Obligations**: Components following MIT or BSD licenses such as ya-webadb, Pion WebRTC, xterm.js, coturn, and Go standard library must retain copyright notices, license statements, and disclaimers when redistributed. MIT/BSD licenses are relatively permissive, allowing modification, redistribution, and commercial use, but original copyright and license statements must be retained.
+4. **Proprietary Components**: libndk_translation (Google) and libhoudini (Intel) are vendor proprietary components; this application does not redistribute them, only uses them with upstream images or auto-downloads at runtime; users should comply with the corresponding vendor's terms of use.
+5. **scrcpy-over-webrtc Components**: Frontend source code is under MIT license, freely modifiable; official binary core components are for personal learning, technical research, and non-commercial testing only.
 ⚠️ **Commercial Use Warning**: If you plan to use this software in any commercial environment (including but not limited to internal corporate commercial use, providing commercial cloud phone services to external parties, etc.), you must contact upstream author hqw700 in advance to obtain commercial authorization, or replace the core components with open-source alternatives that permit commercial use.
-5. **This Project's Code**: Packaging scripts and configs are released under the Apache License 2.0, freely usable, modifiable, and distributable, with copyright notices, license copies, and NOTICE files (if any) retained, and modifications to original files stated.
+6. **This Project's Code**: Packaging scripts and configs are released under the Apache License 2.0, freely usable, modifiable, and distributable, with copyright notices, license copies, and NOTICE files (if any) retained, and modifications to original files stated.
 
 ### Additional Notes
 
@@ -1310,6 +1369,7 @@ This application pulls the following public images via Docker at runtime, withou
 2. Scrcpy container project: https://github.com/hqw700/ScrcpyOverWebRTC
 3. Scrcpy official docs: https://webrtc-phone.com/docs/
 4. Scrcpy official website: https://webrtc-phone.com/
+5. Android Emulator (China) Official Website: https://www.lin1740.de5.net/
 
 ### Acknowledgements
 

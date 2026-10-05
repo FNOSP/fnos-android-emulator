@@ -1309,6 +1309,15 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
   - redroid-modules 内核模块仓库：[GPL-2.0](https://github.com/remote-android/redroid-modules/blob/master/LICENSE)
   - 容器内 AOSP（Android 开源项目）：[Apache 2.0](https://source.android.com/setup/start/licenses)
   - 容器内 Linux 内核相关：GPL-2.0，项目地址：https://www.kernel.org/
+- 容器内主要 AOSP 组件（仅列重要组件，完整列表以 AOSP 官方声明为准）：
+  - Bionic（Android C 标准库）：BSD，项目地址：https://android.googlesource.com/platform/bionic/
+  - Skia（2D 图形引擎）：BSD，项目地址：https://skia.org/
+  - Chromium（WebView 浏览器内核）：BSD / GPL / LGPL 混合，项目地址：https://www.chromium.org/
+  - OpenSSL（加密库）：Apache 2.0，项目地址：https://www.openssl.org/
+  - zlib（压缩库）：zlib License，项目地址：https://zlib.net/
+  - libpng（PNG 图像库）：libpng License，项目地址：http://www.libpng.org/
+  - FreeType（字体渲染库）：FreeType License / GPL，项目地址：https://www.freetype.org/
+  - FFmpeg（媒体编解码，部分版本）：LGPL / GPL，项目地址：https://ffmpeg.org/
 - 内置翻译层：
   - libndk_translation（Google 官方 NDK 翻译层）：Google 专有组件，随 redroid 镜像内置，许可条款见 Google 相关协议
   - libhoudini（Intel 翻译层，v3.8.1+ 自动下载）：Intel 专有组件，从公开渠道下载，许可条款见 Intel 相关协议
@@ -1319,19 +1328,24 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 - 许可证状态：
   - 前端源码（web-app）：[MIT License](https://opensource.org/licenses/MIT)
   - 官方二进制核心组件（服务端、Agent 部署包、APK 运行环境）：仅供个人学习交流、技术研究与非商业测试使用
-- 内部依赖：
+- 主要直接依赖：
   - scrcpy（作者：Genymobile）：[Apache 2.0](https://github.com/Genymobile/scrcpy/blob/master/LICENSE)，项目地址：https://github.com/Genymobile/scrcpy
   - ya-webadb / Tango（作者：yume-chan）：[MIT](https://github.com/yume-chan/ya-webadb/blob/master/LICENSE)，项目地址：https://github.com/yume-chan/ya-webadb
   - Pion WebRTC（作者：pion 组织）：[MIT](https://github.com/pion/webrtc/blob/master/LICENSE)，项目地址：https://github.com/pion/webrtc
   - xterm.js（作者：xtermjs 组织）：[MIT](https://github.com/xtermjs/xterm.js/blob/master/LICENSE)，项目地址：https://github.com/xtermjs/xterm.js
   - coturn TURN 服务器（作者：coturn 项目）：[BSD 3-Clause](https://github.com/coturn/coturn/blob/master/LICENSE)，项目地址：https://github.com/coturn/coturn
+- 主要传递依赖（仅列重要组件，完整列表以各项目官方声明为准）：
+  - Go 语言运行时及标准库：BSD，项目地址：https://go.dev/
+  - 前端框架及工具库（React/Vue 等）：MIT，详见前端 package.json
+  - WebRTC 相关 Go 库（pion 系列）：MIT，项目地址：https://github.com/pion
+  - 日志、配置、WebSocket 等 Go 第三方库：MIT / Apache 2.0，详见 go.mod
 
 #### 3. 本项目打包脚本和配置
 - 项目地址：https://github.com/lin1740/fnos-android-emulator
 - 原作者：键盘敲粥香（lin1740）
 - 许可证：[Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
   > 简要说明：Apache License 2.0 允许任何人免费使用、复制、修改、合并、发布、分发、再许可和销售本软件的副本，前提是保留版权声明、许可证副本和 NOTICE 文件（如有），并声明对原文件的修改。本软件按"现状"提供，不提供任何明示或默示的担保。该许可证包含明确的专利授权条款。
-- 包含：docker-compose 配置、安装/升级脚本、gateway.py 网关、状态页、性能优化脚本等（均为本项目自行开发，适配飞牛 fnOS 平台）
+- 包含：docker-compose 配置、安装/升级脚本、gateway.py 网关、状态页、性能优化脚本、Go 守护进程（androidemu_daemon，负责音频修复和分辨率自动切换）等（均为本项目自行开发，适配飞牛 fnOS 平台）
 - 项目源码链接：见飞牛应用中心本应用详情页的「发布者」蓝色链接，或应用介绍中的项目链接
 - 说明：本应用未自行开发 UI 界面，画面管理页面依赖穿云投屏（scrcpy-over-webrtc）的原生 UI，该 UI 不在本项目修改范围内
 
@@ -1350,10 +1364,11 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 
 1. **GPL-2.0 组件义务**：redroid-modules（内核模块）及容器内 Linux 内核相关代码遵循 GPL-2.0 许可证。本应用仅运行时从公开仓库拉取 redroid 镜像，不修改、不重分发其源码与二进制。在法律定性上属于“单纯聚合”，不构成衍生作品。 但用户若自行修改、重编译或再分发上述 GPL-2.0 组件，需严格遵守 GPL-2.0 的开源义务（包括公开修改后的源码、保留版权声明等）。
 2. **Apache 2.0 组件义务**：AOSP、scrcpy 等遵循 Apache 2.0 许可证的组件，再分发时须保留版权声明、许可证副本和 NOTICE 文件。
-3. **专有组件**：libndk_translation（Google）、libhoudini（Intel）为厂商专有组件，本应用不进行再分发，仅随上游镜像使用或运行时自动下载；用户应遵守对应厂商的使用条款。
-4. **穿云投屏组件**：前端源码为 MIT 许可证，可自由二次开发；官方二进制核心组件仅供个人学习交流、技术研究与非商业测试使用。
+3. **MIT / BSD 组件义务**：ya-webadb、Pion WebRTC、xterm.js、coturn、Go 标准库等遵循 MIT 或 BSD 许可证的组件，再分发时须保留版权声明、许可证声明和免责声明。MIT/BSD 许可证较为宽松，允许修改、再分发和商用，但必须保留原始版权和许可声明。
+4. **专有组件**：libndk_translation（Google）、libhoudini（Intel）为厂商专有组件，本应用不进行再分发，仅随上游镜像使用或运行时自动下载；用户应遵守对应厂商的使用条款。
+5. **穿云投屏组件**：前端源码为 MIT 许可证，可自由二次开发；官方二进制核心组件仅供个人学习交流、技术研究与非商业测试使用。
 ⚠️ 【商用警告】：如果您计划将此软件用于任何商业环境（包括但不限于公司内部商业使用、对外提供商业云手机服务等），请务必事先联系上游作者 hqw700 获取商业授权，或者将核心组件替换为允许商用的开源替代方案。
-5. **本项目代码**：打包脚本和配置以 Apache License 2.0 开放，可自由使用、修改和分发，须保留版权声明、许可证副本和 NOTICE 文件（如有），并声明对原文件的修改。
+6. **本项目代码**：打包脚本和配置以 Apache License 2.0 开放，可自由使用、修改和分发，须保留版权声明、许可证副本和 NOTICE 文件（如有），并声明对原文件的修改。
 
 ### 其他说明
 
@@ -1376,6 +1391,7 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 2. 穿云投屏容器项目链接：https://github.com/hqw700/ScrcpyOverWebRTC
 3. 穿云投屏官方文档：https://webrtc-phone.com/docs/
 4. 穿云投屏官方网站：https://webrtc-phone.com/
+5. 安卓模拟器（国内版）官方网站：https://www.lin1740.de5.net/
 
 ### 致谢
 
