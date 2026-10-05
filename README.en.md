@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -61,6 +61,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Safe Installation/Update Interruption**: Auto-cleanup of temporary data if installation or update is cancelled midway, preventing placeholder issues that block future installations 
 - **Auto Container Detection**: Gateway auto-detects Android container status, container automatically comes online after startup, no manual operation needed
 - **Installation Pre-check **: Auto-detects binder driver, memory (<1GB blocks), Docker availability, disk space (<2GB blocks), GPU capability before installation. Gives clear reasons on failure instead of generic "script execution error with unknown reason"
+- **Standard / GMS Edition Selection**: Choose between Standard Edition (pure AOSP, lightweight and stable) or GMS Edition (with Google Services Framework, Google Play Store, Google Play Services) in the installation wizard. Both editions share the same base system, all configurations and optimizations are fully compatible.
 - **Container Health Check **: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
 - **One-Click Fix **: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
 - **Friendly Status Page **: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
