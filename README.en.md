@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -61,7 +61,6 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Safe Installation/Update Interruption**: Auto-cleanup of temporary data if installation or update is cancelled midway, preventing placeholder issues that block future installations 
 - **Auto Container Detection**: Gateway auto-detects Android container status, container automatically comes online after startup, no manual operation needed
 - **Installation Pre-check **: Auto-detects binder driver, memory (<1GB blocks), Docker availability, disk space (<2GB blocks), GPU capability before installation. Gives clear reasons on failure instead of generic "script execution error with unknown reason"
-- **Standard / GMS Edition Selection**: Choose between Standard Edition (pure AOSP, lightweight and stable) or GMS Edition (with Google Services Framework, Google Play Store, Google Play Services) in the installation wizard. Both editions share the same base system, all configurations and optimizations are fully compatible.
 - **Container Health Check **: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
 - **One-Click Fix **: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
 - **Friendly Status Page **: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
@@ -418,7 +417,7 @@ Once inside, you can run Android commands (e.g. `pm list packages` to list insta
 2. Select APK file to upload
 3. Click APK in file manager within Android container to install
 
-> **Note**: Built-in emulator is x86_64 architecture, no Google services. Image has built-in ARM translation layer, most ARM apps can run; but ARM64 apps strongly dependent on Google services or with anti-emulator detection/complex JIT may crash on startup (translation layer capability boundary). Such apps recommended to use Scrcpy Agent to connect real phone, or configure according to upstream redroid author's Google service recommendations.
+> **Note**: This app is x86_64 architecture. Image has built-in ARM translation layer, most ARM apps can run; but ARM64 apps with anti-emulator detection or complex JIT may crash on startup (translation layer capability boundary).
 
 ---
 
@@ -820,39 +819,6 @@ Check webrtc container logs:
 docker logs androidemu-webrtc --tail 50
 ```
 
-### Q: Google Play Store crashes / Can't use Google services
-
-A: **Do NOT manually install GMS in the Standard Edition**. The Standard Edition image does not include Google Services Framework or system signatures, so manually installed Play Store and Play Services will crash due to missing system-level permissions and signatures.
-
-**Correct approach:**
-1. Uninstall the current Standard Edition (choose "Keep data" during uninstall — installed apps and data will not be lost; if you choose "Delete data", all data inside the Android container will be cleared)
-2. Reinstall and select **GMS Edition** in the installation wizard
-3. GMS Edition includes Google Services Framework, Google Play Store, and Google Play Services, which work normally
-4. Users in China need to configure a network proxy themselves, otherwise Google services cannot connect to servers
-
-> GMS Edition and Standard Edition share the exact same base system. All configurations, scripts, and optimizations are fully compatible, and the data volume is also compatible. Switching editions will not lose installed apps or data.
-
-### Q: Already installed Standard Edition, how to switch to GMS Edition?
-
-A: In the App Center, first uninstall the current Standard Edition (choose "Keep data" during uninstall), then reinstall and select GMS Edition in the installation wizard. The Android data volume (androidemu-data) will be preserved, and installed apps and data will not be lost. GMS Edition will automatically initialize Google services on first boot, taking about 1-2 minutes.
-
-> **Note**: Be sure to choose "Keep data" during uninstall. If you choose "Delete data", all apps and data inside the Android container will be cleared. The upgrade process does not support switching editions — you must switch via "Keep data uninstall → Reinstall".
-
-### Q: What's the difference between GMS Edition and Standard Edition?
-
-A:
-
-| Comparison | Standard Edition | GMS Edition |
-|------------|------------------|-------------|
-| System | Pure AOSP | AOSP + Google Services |
-| Google Play Store | None | Built-in |
-| Google Play Services | None | Built-in |
-| Google account login | Not supported | Supported (requires network environment) |
-| Image size | ~2GB | ~2.2GB |
-| Memory usage | Lower | Slightly higher (Google services run in background) |
-| Direct use in China | Yes | Requires proxy configuration |
-| Configs/scripts/optimizations | All compatible | All compatible |
-
 ### Q: Terminal docker commands fail with `permission denied while trying to connect to the Docker daemon socket`
 
 A: Your current user is not in the docker group and lacks permission to access the Docker daemon directly.
@@ -1246,7 +1212,7 @@ Key technical conclusions verified during development, for secondary development
 1. **Audio**: Enabled in 3.7.3+ (Codec2 Opus software encoder), need to manually enable in connection settings
 2. **External network access**: fnOS reverse proxy only passes TCP, WebRTC media stream (UDP) can't pass, auto-downgrades to WebSocket casting
 3. **fnOS APP**: Some versions WebView has limited WebSocket proxy support, recommend mobile browser
-4. **ARM app compatibility**: ARM64 apps strongly dependent on Google services or with anti-emulator detection may crash
+4. **ARM app compatibility**: ARM64 apps with anti-emulator detection or complex JIT may crash (translation layer capability boundary)
 5. **redroid privileged mode**: Android main container needs privileged (redroid upstream official requirement, non-privileged tested can't boot), but only applies inside container, app itself doesn't request host root
 6. **Scrcpy device count authorization**: Free version has device count limit, paid only increases device count, doesn't affect functionality
 
@@ -1254,12 +1220,12 @@ Key technical conclusions verified during development, for secondary development
 
 ## Feedback Links & Channels
 
-1. **Communication, feedback & beta testing QQ group**: https://qm.qq.com/q/DF7nsBatFu
+1. **Publisher email**: andforlin@foxmail.com
 2. **Suggestion & issue feedback survey**: https://wj.qq.com/s2/28029808/2aab/
-3. **Publisher email**: andforlin@foxmail.com
+3. **Communication, feedback & beta testing QQ group**: https://qm.qq.com/q/DF7nsBatFu
 4. **Special feedback links for redroid container and Scrcpy container authors**: See "Acknowledgements & Links" section
 
-> Feedback links and channels except #4 will be replied to, because #4 is special feedback channel for container issues and suggestions, unrelated to the app itself; if not satisfied with feedback results or want to contribute to the app, you can modify using source code, package according to fnOS official tutorial, then upload via first three feedback links and channels. Publisher will audit uploaded code and invite you to become a contributor; also thanks to those who provide feedback, suggestions or substantial help for the app.
+> Feedback links and channels except #4 will be replied to, because #4 is special feedback channel for container issues and suggestions, unrelated to the app itself; if not satisfied with feedback results or want to contribute to the app, you can modify using source code, package according to fnOS official tutorial, then upload via first three feedback links and channels. Publisher will audit uploaded code and invite you to become a contributor; also thanks to those who provide feedback, suggestions or substantial help for the app. For details, see the official website: https://www.lin1740.de5.net/
 
 ---
 

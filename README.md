@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -61,7 +61,6 @@
 - **安装/更新中断安全**：安装或更新中途取消会自动清理临时数据，避免占位导致下次无法安装
 - **自动容器检测**：网关自动检测安卓容器状态，容器启动后自动上线，无需手动操作
 - **安装预检查**：安装前自动检测 binder 驱动、内存（<1GB 阻断）、Docker 可用性、磁盘空间（<2GB 阻断）、GPU 能力，不通过时给出明确原因，不再显示"执行脚本出错且原因未知"
-- **标准版 / GMS 版二选一**：安装向导中可选择标准版（纯 AOSP，轻量稳定）或 GMS 版（内置谷歌服务框架、Google Play 商店、Google Play 服务），两个版本底层完全一致，所有配置和优化通用
 - **容器健康检查**：实时检测 boot 状态、运行时长、OOM、surfaceflinger/agent 进程，自动识别"启动超时""内存不足被杀死""画面服务异常"等问题
 - **一键修复**：状态页提供"修复GPU/画面""重启安卓容器""重启画面服务"三个按钮，无需 SSH 命令行即可自助修复常见问题
 - **友好状态页**：上游服务不可用时显示美观的状态页（容器状态表格、常见问题排查、刷新按钮），不再是纯文本 "Bad Gateway"
@@ -122,13 +121,9 @@
 
 1. 打开飞牛 fnOS 应用中心
 2. 搜索「安卓模拟器」或「androidemu」
-3. 点击安装，在安装向导中选择安卓系统版本：
-   - **标准版（推荐）**：纯 AOSP 系统，轻量稳定，适合大多数用户
-   - **GMS 版**：内置谷歌服务框架、Google Play 商店、Google Play 服务，需网络环境支持才能登录谷歌账户
+3. 点击安装，按向导完成设置（分辨率、端口等，均可默认）
 4. 等待镜像拉取完成（约 2GB，优先 DaoCloud/飞牛加速源）
 5. 安装完成后点击「打开」即可进入穿云投屏界面
-
-> **注意**：GMS 版镜像比标准版略大（约多 200MB），首次启动时间也略长。国内用户使用 GMS 版需自行配置网络代理，否则谷歌服务无法连接服务器。
 
 ### 方法二：手动安装 fpk
 
@@ -424,7 +419,7 @@ adb shell
 2. 选择 APK 文件上传
 3. 在安卓容器中点击文件管理器中的 APK 进行安装
 
-> **注意**：标准版为 x86_64 架构，不含谷歌服务；GMS 版内置谷歌服务框架和 Play 商店。镜像已内置 ARM 翻译层，大多数 ARM 应用可运行；但强依赖谷歌服务、或含反模拟器检测/复杂 JIT 的 ARM64 应用可能启动即闪退（属翻译层能力边界）。需要谷歌服务的用户请在安装时选择 GMS 版，不要在标准版中手动安装 GMS（手动安装会因缺少系统签名而闪退）。
+> **注意**：本应用为 x86_64 架构，镜像已内置 ARM 翻译层，大多数 ARM 应用可运行；但含反模拟器检测/复杂 JIT 的 ARM64 应用可能启动即闪退（属翻译层能力边界）。
 
 ---
 
@@ -841,39 +836,6 @@ docker logs androidemu-android
 docker logs androidemu-webrtc --tail 50
 ```
 
-### Q: 谷歌商店闪退 / 无法使用谷歌服务
-
-A: **不要在标准版中手动安装 GMS**。标准版镜像不含谷歌服务框架和系统签名，手动安装的 Play 商店、Play 服务会因缺少系统级权限和签名而闪退。
-
-**正确做法**：
-1. 卸载当前标准版（卸载时选择「保留数据」，已安装的应用和数据不会丢失；若选择「删除数据」则会清空安卓容器内所有数据）
-2. 重新安装时在安装向导中选择 **GMS 版**
-3. GMS 版内置谷歌服务框架、Google Play 商店、Google Play 服务，可正常使用
-4. 国内用户需自行配置网络代理，否则谷歌服务无法连接服务器
-
-> GMS 版和标准版底层完全一致，所有配置、脚本、优化全部通用，数据卷也兼容。切换版本不会丢失已安装的应用和数据。
-
-### Q: 已经装了标准版，想换成 GMS 版怎么办？
-
-A: 在应用中心先卸载当前标准版（卸载时选择「保留数据」），再重新安装，安装向导中选择 GMS 版即可。安卓数据卷（androidemu-data）会保留，已安装的应用和数据不会丢失。GMS 版首次启动会自动初始化谷歌服务，约需 1-2 分钟。
-
-> **注意**：卸载时务必选择「保留数据」，若选择「删除数据」则安卓容器内所有应用和数据都会被清空。升级流程不支持切换版本，必须通过「保留数据卸载 → 重新安装」的方式切换。
-
-### Q: GMS 版和标准版有什么区别？
-
-A:
-
-| 对比项 | 标准版 | GMS 版 |
-|--------|--------|--------|
-| 系统 | 纯 AOSP | AOSP + 谷歌服务 |
-| Google Play 商店 | 无 | 内置 |
-| Google Play 服务 | 无 | 内置 |
-| 谷歌账户登录 | 不支持 | 支持（需网络环境） |
-| 镜像大小 | 约 2GB | 约 2.2GB |
-| 内存占用 | 较低 | 略高（谷歌服务后台运行） |
-| 国内直接使用 | 可以 | 需配置代理 |
-| 配置/脚本/优化 | 全部通用 | 全部通用 |
-
 ### Q: 终端执行 docker 命令报 `permission denied while trying to connect to the Docker daemon socket`
 
 A: 当前用户不在 docker 组中，没有权限直接访问 Docker daemon。
@@ -1268,7 +1230,7 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 1. **音频**：3.7.3+ 已启用音频（Codec2 Opus 软件编码器），需在连接设置中手动开启；3.8.x 进一步优化了音频稳定性。注意：音量大小与宿主系统实际音量匹配（容器内设100但宿主系统只设50，则按50输出）
 2. **外网访问**：飞牛反向代理只透传 TCP，WebRTC 媒体流（UDP）无法通过，自动降级为 WebSocket 投屏
 3. **飞牛 APP**：部分版本 WebView 对 WebSocket 代理支持有限，建议用手机浏览器
-4. **ARM 应用兼容性**：强依赖谷歌服务或含反模拟器检测的 ARM64 应用可能闪退（需谷歌服务请安装 GMS 版）
+4. **ARM 应用兼容性**：含反模拟器检测或复杂 JIT 的 ARM64 应用可能闪退（属翻译层能力边界）
 5. **redroid 特权模式**：安卓主容器需要 privileged（redroid 上游官方要求，非特权方案实测无法开机），但仅作用于容器内部，应用本体不申请宿主 root
 6. **穿云投屏设备数量授权**：免费版有设备数量限制，付费仅增加设备数量，不影响功能
 
@@ -1276,12 +1238,12 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 
 ## 问题、建议反馈链接和渠道
 
-1. **交流、反馈和内测体验 QQ 群**：https://qm.qq.com/q/DF7nsBatFu
+1. **发布者邮箱**：andforlin@foxmail.com
 2. **建议、问题反馈问卷**：https://wj.qq.com/s2/28029808/2aab/
-3. **发布者邮箱**：andforlin@foxmail.com
+3. **交流、反馈和内测体验 QQ 群**：https://qm.qq.com/q/DF7nsBatFu
 4. **redroid 容器和穿云投屏容器作者的容器专门反馈链接**：见「致谢和导向链接」章节
 
-> 提供的反馈链接和渠道除第四条以外都会回复，因为第四条是对容器的问题和建议的专门反馈渠道，与软件本身无关；如果在反馈之后后续处理结果不满意或者想为软件添砖加瓦的，你可以使用源代码进行修改，按照飞牛官方打包教程之后还是按照前三条的反馈链接和渠道进行上传，发布者对上传的代码进行审计之后，会邀请你一起成为贡献者，为软件作出奉献；也感谢对软件本身的问题提出反馈、建议或者提供实质性帮助的人员。
+> 提供的反馈链接和渠道除第四条以外都会回复，因为第四条是对容器的问题和建议的专门反馈渠道，与软件本身无关；如果在反馈之后后续处理结果不满意或者想为软件添砖加瓦的，你可以使用源代码进行修改，按照飞牛官方打包教程之后还是按照前三条的反馈链接和渠道进行上传，发布者对上传的代码进行审计之后，会邀请你一起成为贡献者，为软件作出奉献；也感谢对软件本身的问题提出反馈、建议或者提供实质性帮助的人员。具体详见官方网站：https://www.lin1740.de5.net/
 
 ---
 
