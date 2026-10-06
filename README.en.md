@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -61,6 +61,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Safe Installation/Update Interruption**: Auto-cleanup of temporary data if installation or update is cancelled midway, preventing placeholder issues that block future installations 
 - **Auto Container Detection**: Gateway auto-detects Android container status, container automatically comes online after startup, no manual operation needed
 - **Installation Pre-check **: Auto-detects binder driver, memory (<1GB blocks), Docker availability, disk space (<2GB blocks), GPU capability before installation. Gives clear reasons on failure instead of generic "script execution error with unknown reason"
+- **Optional GMS Installation**: Choose whether to install Google Services Framework (GMS) and Google Play Store in the installation wizard. If selected, the system automatically detects architecture (x86_64/arm64) and pulls corresponding files from the GMS image to install into the standard container. If not selected, the system remains pure Android, lightweight and stable
 - **Container Health Check **: Real-time monitoring of boot status, uptime, OOM kills, surfaceflinger/agent processes. Auto-detects "boot timeout", "killed by OOM", "screen service abnormal" etc.
 - **One-Click Fix **: Status page provides three buttons - "Fix GPU/Screen", "Restart Android Container", "Restart Screen Service" - no SSH command line needed for common issues
 - **Friendly Status Page **: When upstream service is unavailable, shows a beautiful status page (container status table, troubleshooting tips, refresh button) instead of plain text "Bad Gateway"
@@ -121,8 +122,14 @@ This application uses the following ports. Only 8443 is automatically reverse-pr
 
 1. Open fnOS App Center
 2. Search for "Android Emulator" or "androidemu"
-3. Click install, wait for image pull (~2GB, priority DaoCloud/fnOS mirror)
-4. Click "Open" after installation to enter Scrcpy interface
+3. Click install, follow the wizard:
+   - **Google Services (GMS)**: Choose whether to install Google Services Framework and Play Store (default: not installed, lightweight and stable)
+   - **Resolution**: Optional, auto-adapts to multiple devices
+   - **Ports**: Optional, defaults work fine
+4. Wait for image pull to complete (~2GB, priority DaoCloud/fnOS mirror)
+5. Click "Open" after installation to enter Scrcpy interface
+
+> **Note**: If GMS installation is selected, the container will automatically detect system architecture (x86_64/arm64) on first boot, pull the corresponding GMS image and extract files to install to system partitions, then restart automatically. The whole process takes about 3-5 minutes (depending on network speed). GMS requires a network environment to log in and use normally.
 
 ### Method 2: Manual fpk Installation
 
@@ -647,6 +654,15 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 - Fees collected by upstream authorization service provider, unrelated to fnOS official
 <img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
+### 7. GMS (Google Mobile Services) Compliance Note
+
+- **App package does not contain GMS binaries**: The FPK package is only ~150KB, no Google proprietary software included
+- **GMS is optional**: Installation wizard defaults to "Do not install"; user must actively select "Install" and confirm the legal notice before triggering
+- **Runtime acquisition**: After selecting install, the script automatically detects system architecture (x86_64/arm64), extracts files from a separate GMS file carrier image, and installs to the standard redroid container's system partitions
+- **GMS source**: x86_64 GMS files extracted from third-party redroid derivative image (whojk/redroid); arm64 version from the MindTheGapps open project; both are third-party repackaging of Google proprietary software
+- **Legal responsibility**: GMS (Google Mobile Services) is proprietary software of Google LLC, protected by copyright. This project does not directly distribute GMS binaries, for personal research only. Use of GMS is subject to Google's Terms of Service, and legal responsibility rests with the user
+- **Compliant alternative**: If only basic features like push notifications, location, and maps are needed, the open-source microG (Apache 2.0 license) is recommended, with no legal risk
+
 ---
 
 ## FAQ
@@ -818,6 +834,93 @@ Check webrtc container logs:
 ```bash
 docker logs androidemu-webrtc --tail 50
 ```
+
+### Q: I selected GMS during installation, how to verify it's installed?
+
+A: After installation, open Scrcpy and you should see the "Play Store" icon in the app list. You can also check via command:
+```bash
+docker exec androidemu-android pm list packages | grep google
+```
+You should see `com.google.android.gsf` (Services Framework), `com.google.android.gms` (Play Services), `com.android.vending` (Play Store).
+
+If not, check the GMS installation log:
+```bash
+cat /var/apps/androidemu/var/gms_install.log
+```
+
+### Q: Black screen or boot failure after installing GMS?
+
+A: GMS installation failure may cause system issues. Solution:
+1. Uninstall the current app (select "Keep data")
+2. Reinstall, select "Do not install GMS" in the wizard
+3. System returns to normal after installation
+
+GMS installation log is at `/var/apps/androidemu/var/gms_install.log`, check for specific failure reasons.
+
+### Q: Already installed Standard Edition, want to add GMS?
+
+A: Currently GMS can only be selected during installation. Users with Standard Edition need to:
+1. Uninstall the current app (select "Keep data" — installed apps and data will not be lost)
+2. Reinstall, select "Install GMS services and Play Store" in the wizard
+3. Data is preserved after installation, GMS is installed automatically
+
+### Q: What's the difference between this GMS and the old GMS edition image?
+
+A:
+- **Old GMS edition (before 3.8.7)**: Used third-party whojk/redroid image, GPU host mode incompatible with some hardware causing black screen
+- **New GMS (3.8.7+)**: Uses official redroid Standard Edition image, GPU mode works normally; during installation, automatically detects architecture (x86_64/arm64) and extracts files from a separate GMS file carrier image to install to system partitions — no black screen issues; the app package itself does not contain GMS binaries, size is only ~150KB
+
+### Q: Installation fails with "all mirror sources and Docker Hub official are unreachable"?
+
+A: This happens when NAS Docker cannot access the image registry (the ~2GB Redroid system image pull fails).
+
+**Cause:** The default fnOS mirror accelerator (docker.fnnas.com) or Docker Hub official source is unreachable in the current network environment.
+
+**Solutions (in recommended order):**
+
+1. **Configure a domestic mirror accelerator (recommended)**: Open fnOS **Docker → Settings → Registry Mirrors**, add any of the following working addresses:
+   - DaoCloud: `https://docker.m.daocloud.io`
+   - Nanjing University: `https://docker.nju.edu.cn`
+   - Shanghai Jiao Tong University: `https://docker.mirrors.sjtug.sjtu.edu.cn`
+   
+   Save, wait for Docker to restart, then retry installation.
+
+2. **Check proxy settings**: If NAS has a proxy configured, verify it can access Docker Hub; if no proxy but network egress is restricted, configure an accelerator first.
+
+3. **Manual image import (offline)**: On a computer with internet, run `docker save redroid/redroid:12.0.0-latest -o redroid.tar`, transfer the tar file to NAS, then run `docker load -i redroid.tar`, and retry installation.
+
+> The pre-install check detects network before pulling images. On failure, installation aborts and **existing data is not deleted**. Simply retry after fixing the network.
+
+### Q: After installing GMS, scrcpy keeps connecting/disconnecting, then stabilizes after a while — is this normal?
+
+A: Yes, this is normal behavior, not a bug.
+
+**Cause:** After GMS installation completes, the Android container restarts. During reboot, the system reinitializes GMS core components (GmsCore, GoogleServicesFramework, Play Store, etc.), which perform in the background:
+- First-boot dex optimization (dex2oat)
+- Google Services Framework registration and permission initialization
+- Play Store app list sync
+- Network connection and Google server handshake (may timeout and retry on domestic networks)
+
+This process typically lasts **1~3 minutes**, during which scrcpy shows "connecting" or repeatedly disconnects and reconnects — this is expected.
+
+**Recommendations:**
+- Wait patiently for 3 minutes after GMS installation; do not frequently refresh or restart the container
+- If still unable to connect after 5 minutes, check container logs: `docker logs androidemu-android --tail 50`
+- Google server connection timeout on domestic networks is normal and does not affect local app running — only affects Play Store login and cloud sync
+
+### Q: After GMS installation completes, can the GMS image be deleted?
+
+A: Yes. The GMS image (`ghcr.io/lin1740/androidemu-gms:x86_64-latest` or `arm64-latest`, ~700MB) is only used during installation to extract GMS files and is no longer needed afterward.
+
+**Automatic cleanup (3.8.7+ default enabled):** The install script automatically deletes the GMS image after successful installation, freeing ~700MB.
+
+**Manual deletion:** If you need to clean up manually:
+```bash
+docker rmi ghcr.io/lin1740/androidemu-gms:x86_64-latest   # x86_64
+docker rmi ghcr.io/lin1740/androidemu-gms:arm64-latest    # arm64
+```
+
+> Note: After deletion, if you need to reinstall GMS in the future (e.g., after uninstalling and reinstalling), the image (~700MB) will be re-pulled from the registry.
 
 ### Q: Terminal docker commands fail with `permission denied while trying to connect to the Docker daemon socket`
 

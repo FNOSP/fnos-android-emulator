@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.8.6-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -61,6 +61,7 @@
 - **安装/更新中断安全**：安装或更新中途取消会自动清理临时数据，避免占位导致下次无法安装
 - **自动容器检测**：网关自动检测安卓容器状态，容器启动后自动上线，无需手动操作
 - **安装预检查**：安装前自动检测 binder 驱动、内存（<1GB 阻断）、Docker 可用性、磁盘空间（<2GB 阻断）、GPU 能力，不通过时给出明确原因，不再显示"执行脚本出错且原因未知"
+- **GMS 服务可选安装**：安装向导中可选择是否安装谷歌服务框架（GMS）和 Google Play 商店，选择后自动检测架构（x86_64/arm64）并从 GMS 镜像拉取对应文件安装到标准版容器，不安装则保持纯安卓系统，轻量稳定
 - **容器健康检查**：实时检测 boot 状态、运行时长、OOM、surfaceflinger/agent 进程，自动识别"启动超时""内存不足被杀死""画面服务异常"等问题
 - **一键修复**：状态页提供"修复GPU/画面""重启安卓容器""重启画面服务"三个按钮，无需 SSH 命令行即可自助修复常见问题
 - **友好状态页**：上游服务不可用时显示美观的状态页（容器状态表格、常见问题排查、刷新按钮），不再是纯文本 "Bad Gateway"
@@ -121,9 +122,14 @@
 
 1. 打开飞牛 fnOS 应用中心
 2. 搜索「安卓模拟器」或「androidemu」
-3. 点击安装，按向导完成设置（分辨率、端口等，均可默认）
+3. 点击安装，按向导完成设置：
+   - **谷歌服务（GMS）**：选择是否安装谷歌服务框架和 Play 商店（默认不安装，轻量稳定）
+   - **分辨率**：可选，多端自动适配
+   - **端口**：可选，默认即可
 4. 等待镜像拉取完成（约 2GB，优先 DaoCloud/飞牛加速源）
 5. 安装完成后点击「打开」即可进入穿云投屏界面
+
+> **注意**：选择安装GMS后，容器首次启动会自动检测系统架构（x86_64/arm64），拉取对应架构的GMS镜像并提取文件安装到系统分区，然后自动重启容器，整个过程约需 3-5 分钟（取决于网络速度）。GMS服务需网络环境支持才能正常登录和使用。
 
 ### 方法二：手动安装 fpk
 
@@ -664,6 +670,15 @@ WebRTC 接收 H.264 流 ←── TURN/STUN 中继 ←── scrcpy 编码 ←�
 - 费用由上游授权服务方收取，与飞牛官方无关
 <img width="1288" height="900" alt="firefox exe_20260927_092044" src="https://github.com/user-attachments/assets/44afdf11-2112-4ae7-8544-89e6bfa0238b" />
 
+### 7. GMS（谷歌服务）合规说明
+
+- **应用包本身不包含GMS二进制文件**：FPK安装包仅约150KB，不含任何Google专有软件
+- **GMS为可选安装**：安装向导默认选择「不安装」，用户需主动选择「安装」并确认法律声明后才会触发
+- **安装时实时获取**：选择安装后，脚本自动检测系统架构（x86_64/arm64），从独立的GMS文件载体镜像中提取文件，安装到标准版redroid容器的系统分区
+- **GMS来源**：x86_64版本GMS文件提取自第三方redroid衍生镜像（whojk/redroid），arm64版本来自MindTheGapps公开项目；两者均为Google专有软件的第三方重新打包
+- **法律责任**：GMS（Google Mobile Services）是Google LLC的专有软件，受版权保护。本项目不直接分发GMS二进制文件，仅供个人学习研究使用。使用GMS需遵守Google服务条款，相关法律责任由使用者自行承担
+- **合规替代方案**：如仅需推送通知、定位、地图等基础功能，推荐使用开源的microG（Apache 2.0协议），无法律风险
+
 ---
 
 ## 常见问题
@@ -835,6 +850,93 @@ docker logs androidemu-android
 ```bash
 docker logs androidemu-webrtc --tail 50
 ```
+
+### Q: 安装时选择了GMS，怎么确认安装成功了？
+
+A: 安装完成后，打开穿云投屏，在应用列表里应该能看到「Play 商店」图标。也可以通过命令检查：
+```bash
+docker exec androidemu-android pm list packages | grep google
+```
+应该能看到 `com.google.android.gsf`（服务框架）、`com.google.android.gms`（Play服务）、`com.android.vending`（Play商店）。
+
+如果没有，查看GMS安装日志：
+```bash
+cat /var/apps/androidemu/var/gms_install.log
+```
+
+### Q: 安装GMS后画面黑屏或启动不了怎么办？
+
+A: GMS安装失败可能导致系统异常。解决方法：
+1. 卸载当前应用（选择保留数据）
+2. 重新安装，安装向导中选择「不安装GMS」
+3. 安装完成后系统恢复正常
+
+GMS安装日志在 `/var/apps/androidemu/var/gms_install.log`，可以查看具体失败原因。
+
+### Q: 已经装了标准版，想加装GMS怎么办？
+
+A: 目前GMS只能在安装时选择。已安装标准版的用户需要：
+1. 卸载当前应用（选择「保留数据」，已安装的应用和数据不会丢失）
+2. 重新安装，安装向导中选择「安装GMS服务和Play商店」
+3. 安装完成后数据保留，GMS自动安装
+
+### Q: GMS和之前的GMS版镜像有什么区别？
+
+A: 
+- **旧GMS版（3.8.7之前）**：使用第三方 whojk/redroid 镜像，GPU host模式与部分硬件不兼容导致黑屏
+- **新版GMS（3.8.7+）**：使用官方 redroid 标准版镜像，GPU模式正常；安装时自动检测架构（x86_64/arm64），从独立的GMS文件载体镜像中提取文件安装到系统分区，不会有黑屏问题；应用包本身不包含GMS二进制文件，体积仅约150KB
+
+### Q: 安装时提示"所有加速源与 Docker Hub 官方源均不可达"怎么办？
+
+A: 这是 NAS 的 Docker 无法访问镜像仓库导致的（约 2GB 的 Redroid 系统镜像拉取失败）。
+
+**原因：** 飞牛默认镜像加速器（docker.fnnas.com）或 Docker Hub 官方源在当前网络环境下不可达。
+
+**解决方法（按推荐顺序）：**
+
+1. **配置国内镜像加速器（推荐）**：打开飞牛 fnOS 的 **Docker → 设置 → 镜像加速器**，添加以下任一可用地址：
+   - DaoCloud：`https://docker.m.daocloud.io`
+   - 南京大学：`https://docker.nju.edu.cn`
+   - 上海交通大学：`https://docker.mirrors.sjtug.sjtu.edu.cn`
+   
+   保存后等待 Docker 重启，再重新安装。
+
+2. **检查代理设置**：如果 NAS 配置了代理，确认代理能正常访问 Docker Hub；如果没有代理但网络出口受限，建议先配置加速器。
+
+3. **手动导入镜像（离线方案）**：在能联网的电脑上执行 `docker save redroid/redroid:12.0.0-latest -o redroid.tar`，将 tar 文件传到 NAS 后执行 `docker load -i redroid.tar`，再重新安装。
+
+> 安装预检查会在拉取镜像前检测网络，失败时中止安装且**不会删除已有数据**，修复网络后直接重试即可。
+
+### Q: 安装 GMS 后穿云投屏反复连接/离线，过一会儿才正常，是怎么回事？
+
+A: 这是正常现象，不是 bug。
+
+**原因：** GMS 安装完成后会重启安卓容器，容器重启过程中系统需要重新初始化 GMS 核心组件（GmsCore、GoogleServicesFramework、Play商店等），这些组件会在后台进行：
+- 首次启动的 dex 优化（dex2oat）
+- Google 服务框架注册和权限初始化
+- Play 商店的应用列表同步
+- 网络连接和 Google 服务器握手（国内网络下可能超时重试）
+
+这个过程通常持续 **1~3 分钟**，期间穿云投屏会显示"正在连接"或反复离线重连，属于正常现象。
+
+**建议：**
+- 安装 GMS 后耐心等待 3 分钟，不要频繁刷新或重启容器
+- 如果 5 分钟后仍无法连接，查看容器日志：`docker logs androidemu-android --tail 50`
+- 国内网络下 Google 服务器连接超时属正常，不影响本地应用运行，仅影响 Play 商店登录和云同步
+
+### Q: GMS 安装完成后，GMS 镜像可以删除吗？
+
+A: 可以。GMS 镜像（`ghcr.io/lin1740/androidemu-gms:x86_64-latest` 或 `arm64-latest`，约 700MB）仅在安装时用于提取 GMS 文件，安装完成后不再需要。
+
+**自动清理（3.8.7+ 默认开启）：** 安装脚本在 GMS 安装成功后会自动删除 GMS 镜像，释放约 700MB 空间。
+
+**手动删除：** 如果需要手动清理，执行：
+```bash
+docker rmi ghcr.io/lin1740/androidemu-gms:x86_64-latest   # x86_64
+docker rmi ghcr.io/lin1740/androidemu-gms:arm64-latest    # arm64
+```
+
+> 注意：删除后如果将来需要重新安装 GMS（如卸载重装），会重新从镜像仓库拉取，约 700MB。
 
 ### Q: 终端执行 docker 命令报 `permission denied while trying to connect to the Docker daemon socket`
 
