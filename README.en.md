@@ -19,6 +19,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - [Installation Requirements](#installation-requirements)
 - [Port Reference](#port-reference)
 - [Installation Methods](#installation-methods)
+- [GMS Service](#gms-service)
 - [Access Methods](#access-methods)
 - [Default Account](#default-account)
 - [Quick Start (Cloud Phone Usage Guide)](#quick-start-cloud-phone-usage-guide)
@@ -145,6 +146,147 @@ Installation automatically tries image sources in this order:
 3. Docker Hub official repository
 
 If all fail, configure image accelerator (registry-mirrors) in fnOS Docker settings and retry.
+
+> **Download Speed Note**: First-time installation pulls ~2GB Android container image. During peak evening hours (typically 20:00-24:00), international bandwidth is congested and slower download speeds are normal — please be patient or retry during daytime. It is recommended to configure an appropriate mirror accelerator in fnOS **Docker → Image Registry → Settings → Mirror Settings**.
+
+---
+
+## GMS Service
+
+### Overview
+
+GMS (Google Mobile Services) is a set of proprietary service components provided by Google, including Google Play Services, Google Play Store, Google Services Framework, Google Account Manager, etc. After installing GMS, you can use the Play Store to download apps, receive Google push notifications, and use apps that rely on Google services.
+
+GMS in this app is **optional**: the installation wizard defaults to "Do not install", keeping a pure Android system that is lightweight and stable. Users must actively select "Install" and confirm the legal notice before installation is triggered. The app installation package itself **does not contain any GMS binary files**; GMS files are extracted from a separate file carrier image at installation time.
+
+### Architecture Support
+
+GMS service supports both x86_64 and arm64 architectures. The installation script automatically detects the system architecture (`uname -m`) and pulls the corresponding version:
+
+| Architecture | GMS Image | Source |
+|--------------|-----------|--------|
+| x86_64 | `ghcr.io/lin1740/androidemu-gms:x86_64-1.0.0` | Extracted from third-party redroid derivative image (whojk/redroid:12.0.0_mindthegapps) |
+| arm64 | `ghcr.io/lin1740/androidemu-gms:arm64-1.0.0` | Extracted from official MindTheGapps 12.1.0-arm64 package |
+
+- x86_64 version: MindTheGapps officially does not provide x86_64 prebuilt packages, so system files are extracted from a third-party redroid image with GMS integrated
+- arm64 version: Uses the official MindTheGapps arm64 release package
+- Both images are pushed to GitHub Container Registry (GHCR) and are publicly pullable
+
+### Installation
+
+**Step 1: Select in Installation Wizard**
+
+In the "Google Services (GMS)" step of the installation wizard, select "Install GMS Service and Play Store", read and confirm the legal notice, then continue.
+
+**Step 2: Auto-detect Architecture and Pull Image**
+
+After the container first starts, the installation script automatically detects the system architecture and pulls the corresponding GMS file carrier image (~560-700MB) from GHCR. Pulling supports multi-source fallback:
+1. Nanjing University mirror `ghcr.nju.edu.cn`
+2. DaoCloud mirror `docker.m.daocloud.io`
+3. GHCR official `ghcr.io`
+
+> **Download Speed Note**: The GMS image is ~560-700MB. Slower download speeds during peak evening hours are normal — please be patient or retry during daytime. If pulling fails, the script automatically tries the next mirror source.
+
+**Step 3: Extract Files and Install to System Partition**
+
+After the image is pulled, the script creates a temporary container via `docker create`, extracts GMS files using a `docker export | tar -x` pipeline, and copies them to `/system/priv-app/`, `/system/app/`, `/system/framework/`, `/system/etc/` and other directories according to the Android 12 partition structure, with correct permissions (chmod 644/755).
+
+**Step 4: Wait for System Ready and Restart Container**
+
+The script waits for `sys.boot_completed=1` and core services (surfaceflinger/mediaserver/adbd) to be ready, then restarts the Android container for GMS to take effect.
+
+**Step 5: Automatic Cleanup**
+
+After successful GMS installation, the script automatically deletes the GMS file carrier image (~560-700MB) to free disk space — no manual cleanup required.
+
+The entire installation process takes approximately 3-10 minutes (depending on network speed and NAS performance).
+
+### Verification After Installation
+
+After installation, you can verify whether GMS was installed successfully via:
+
+**Method 1: Check App List**
+
+Open scrcpy-over-webrtc; the "Play Store" (Google Play Store) icon should appear in the Android app list.
+
+**Method 2: Command Line Check**
+
+```bash
+docker exec androidemu-android pm list packages | grep google
+```
+
+You should see these packages:
+- `com.google.android.gsf` — Google Services Framework
+- `com.google.android.gms` — Google Play Services
+- `com.android.vending` — Google Play Store
+
+**Method 3: Check Installation Log**
+
+```bash
+cat /var/apps/androidemu/var/gms_install.log
+```
+
+The log records each step's execution status and result.
+
+### FAQ
+
+**Q: GMS image pull fails, what should I do?**
+
+A: The script automatically tries multiple mirror sources (Nanjing University → DaoCloud → GHCR official). If all fail:
+1. Check NAS network connection and DNS configuration
+2. Configure an available mirror accelerator in fnOS **Docker → Image Registry → Settings → Mirror Settings**
+3. Configure a proxy in fnOS **Docker → Image Registry → Settings → Proxy Settings** (if network egress is restricted)
+4. Manually pull the image then retry: `docker pull ghcr.io/lin1740/androidemu-gms:x86_64-1.0.0` (x86_64) or `docker pull ghcr.io/lin1740/androidemu-gms:arm64-1.0.0` (arm64)
+
+**Q: After installing GMS, scrcpy keeps connecting/disconnecting, then stabilizes after a while — is this normal?**
+
+A: This is normal. After GMS installation completes, the Android container restarts. After restart, GMS core components (GmsCore, GoogleServicesFramework, Play Store, etc.) need to perform first-boot dex optimization, service registration, permission initialization, and network handshake. This process typically lasts 1-3 minutes. During this time, scrcpy may show "Connecting" or repeatedly disconnect/reconnect. Please be patient and do not frequently refresh or restart the container.
+
+**Q: Black screen or boot failure after installing GMS?**
+
+A: GMS installation failure may cause system issues. Solution:
+1. Check installation log: `cat /var/apps/androidemu/var/gms_install.log`
+2. If installation failed, uninstall the current app (select "Keep data"), reinstall and select "Do not install GMS"
+3. After reinstallation, the system returns to normal and data is preserved
+
+**Q: Already installed Standard Edition, want to add GMS?**
+
+A: Currently GMS can only be selected during installation. Users who already installed Standard Edition need to:
+1. Uninstall the current app (select "Keep data" — installed apps and data will not be lost)
+2. Reinstall, select "Install GMS Service and Play Store" in the wizard
+3. After installation, data is preserved and GMS is automatically installed
+
+**Q: After GMS installation completes, can the GMS image be deleted?**
+
+A: Yes. The GMS image is only used for file extraction during installation and is no longer needed afterward. In v3.8.7+, the installation script **automatically deletes** the GMS image after successful installation. To manually clean up:
+```bash
+docker rmi ghcr.io/lin1740/androidemu-gms:x86_64-1.0.0   # x86_64
+docker rmi ghcr.io/lin1740/androidemu-gms:arm64-1.0.0    # arm64
+```
+After deletion, if you need to reinstall GMS in the future (e.g., after uninstalling and reinstalling), the image will be re-pulled from the registry.
+
+**Q: What's the difference between this GMS and the old GMS edition image?**
+
+A:
+- **Old GMS edition (before 3.8.7)**: Directly used the third-party whojk/redroid image as the Android container; GPU host mode was incompatible with some hardware causing black screen
+- **New GMS (3.8.7+)**: Always uses the official redroid standard image as the Android container; GPU mode works normally. During installation, architecture is auto-detected and files are extracted from a separate GMS file carrier image into the system partition — no black screen issues. The app package itself does not contain GMS binary files
+
+### Uninstall & Reinstall
+
+- **Uninstall app**: Click "Uninstall" in fnOS App Center, choose whether to keep data. When keeping data, apps and data inside the Android container are not lost, but GMS service is removed along with the container
+- **Reinstall**: During reinstallation, select "Install GMS" again in the wizard; the script will re-pull the GMS image and install
+- **Remove GMS only without reinstalling**: Currently not supported. To remove GMS, you need to uninstall the app then reinstall and select "Do not install GMS"
+
+### Legal Notice
+
+GMS (Google Mobile Services) is proprietary software of Google LLC, protected by copyright law and relevant international treaties. The app installation package itself does not contain any GMS binary files; only after the user actively selects "Install GMS Service" are files extracted at runtime from a separate GMS file carrier image and installed into the Android container.
+
+- Use of GMS is subject to Google's relevant terms of service and privacy policy
+- This project has not obtained official Google authorization or MADA certification; distribution and use of GMS may carry legal risks, and is limited to personal learning and research purposes
+- For commercial use or large-scale distribution, you must obtain formal authorization from Google yourself
+- Commercial users are recommended to prioritize open-source compliant alternatives such as microG
+
+> For the complete GMS legal notice, license terms, and disclaimer, see the "Open Source License & Disclaimer" section of this document.
 
 ---
 
@@ -662,6 +804,10 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 - **GMS source**: x86_64 GMS files extracted from third-party redroid derivative image (whojk/redroid); arm64 version from the MindTheGapps open project; both are third-party repackaging of Google proprietary software
 - **Legal responsibility**: GMS (Google Mobile Services) is proprietary software of Google LLC, protected by copyright. This project does not directly distribute GMS binaries, for personal research only. Use of GMS is subject to Google's Terms of Service, and legal responsibility rests with the user
 - **Compliant alternative**: If only basic features like push notifications, location, and maps are needed, the open-source microG (Apache 2.0 license) is recommended, with no legal risk
+- **Auto-cleanup after GMS install**: After successful GMS installation, the GMS file carrier image (~700MB) is automatically removed to free disk space, no manual cleanup needed
+- **GMS parallel pre-download**: When GMS is selected during installation, the GMS image is downloaded in parallel with the Android system image in the background; after container boot, files are extracted directly, significantly reducing total installation time
+- **Domestic mirror acceleration**: GMS image pull supports multi-source fallback (Nanjing University ghcr.nju.edu.cn → DaoCloud docker.m.daocloud.io → GHCR official), automatically selecting the fastest available source in domestic network environments
+- **Auto-retry on failure**: If GMS installation encounters boot timeout or image pull failure, the installation marker file is not removed; it automatically retries on next container boot, avoiding the "thought it was installed but actually wasn't" issue
 
 ---
 
@@ -878,14 +1024,14 @@ A: This happens when NAS Docker cannot access the image registry (the ~2GB Redro
 
 **Solutions (in recommended order):**
 
-1. **Configure a domestic mirror accelerator (recommended)**: Open fnOS **Docker → Settings → Registry Mirrors**, add any of the following working addresses:
+1. **Configure a domestic mirror accelerator (recommended)**: Open fnOS **Docker → Image Registry → Settings → Mirror Settings**, add any of the following working addresses:
    - DaoCloud: `https://docker.m.daocloud.io`
    - Nanjing University: `https://docker.nju.edu.cn`
    - Shanghai Jiao Tong University: `https://docker.mirrors.sjtug.sjtu.edu.cn`
    
    Save, wait for Docker to restart, then retry installation.
 
-2. **Check proxy settings**: If NAS has a proxy configured, verify it can access Docker Hub; if no proxy but network egress is restricted, configure an accelerator first.
+2. **Check proxy settings**: If NAS has a proxy configured, verify in **Docker → Image Registry → Settings → Proxy Settings** that the proxy can access Docker Hub; if no proxy but network egress is restricted, configure an accelerator first.
 
 3. **Manual image import (offline)**: On a computer with internet, run `docker save redroid/redroid:12.0.0-latest -o redroid.tar`, transfer the tar file to NAS, then run `docker load -i redroid.tar`, and retry installation.
 
@@ -910,14 +1056,14 @@ This process typically lasts **1~3 minutes**, during which scrcpy shows "connect
 
 ### Q: After GMS installation completes, can the GMS image be deleted?
 
-A: Yes. The GMS image (`ghcr.io/lin1740/androidemu-gms:x86_64-latest` or `arm64-latest`, ~700MB) is only used during installation to extract GMS files and is no longer needed afterward.
+A: Yes. The GMS image (`ghcr.io/lin1740/androidemu-gms:x86_64-1.0.0` or `arm64-1.0.0`, ~700MB) is only used during installation to extract GMS files and is no longer needed afterward.
 
 **Automatic cleanup (3.8.7+ default enabled):** The install script automatically deletes the GMS image after successful installation, freeing ~700MB.
 
 **Manual deletion:** If you need to clean up manually:
 ```bash
-docker rmi ghcr.io/lin1740/androidemu-gms:x86_64-latest   # x86_64
-docker rmi ghcr.io/lin1740/androidemu-gms:arm64-latest    # arm64
+docker rmi ghcr.io/lin1740/androidemu-gms:x86_64-1.0.0   # x86_64
+docker rmi ghcr.io/lin1740/androidemu-gms:arm64-1.0.0    # arm64
 ```
 
 > Note: After deletion, if you need to reinstall GMS in the future (e.g., after uninstalling and reinstalling), the image (~700MB) will be re-pulled from the registry.
@@ -1406,6 +1552,7 @@ This application pulls the following public images via Docker at runtime, withou
 4. Third-party components integrated in the application (redroid, scrcpy-over-webrtc, etc.) are maintained by their respective authors, and their functionality, stability, and compliance are not controlled by this project.
 5. Users should back up important data themselves; this application does not guarantee the security and integrity of data in the container.
 6. This application itself does not actively collect your personal privacy data; all runtime data is stored on your local device. However, please note that when using third-party authorized services such as scrcpy-over-webrtc, necessary data such as your device identifier and network requests will be sent to upstream official servers for authorization verification and signaling connections. Please refer to the upstream service's privacy policy for details.
+7. **Regarding GMS (Google Mobile Services)**: GMS (including Google Play Services, Google Play Store, Google Services Framework, etc.) is proprietary software of Google LLC, protected by copyright law and relevant international treaties. The application package itself **does not contain any GMS binaries**; only after the user actively selects "Install GMS" does the script extract files from a separate GMS file carrier image at runtime and install them into the Android container. By selecting to install GMS, you acknowledge and understand that: (1) Use of GMS is subject to Google's Terms of Service and Privacy Policy; (2) This project has not obtained official authorization or MADA certification from Google, and the distribution and use of GMS may carry legal risks, limited to personal learning and research purposes only; (3) After installation, GMS may have compatibility issues with some applications or system components, and this project is not responsible for any functional abnormalities, data loss, or system instability resulting therefrom; (4) If you intend to use it for commercial purposes or large-scale distribution, you must obtain formal authorization from Google yourself, otherwise you may face legal risks. Commercial users are recommended to consider open-source compliant alternatives such as microG.
 
 ### Open Source Obligations
 
