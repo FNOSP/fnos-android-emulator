@@ -2,7 +2,7 @@
 
 **中文** | [English](README.en.md)
 
-![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.9-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **使用手册与常见问题**：见本文档下方各章节
 
@@ -31,6 +31,7 @@
 - [技术栈与翻译层](#技术栈与翻译层)
 - [审核合规性说明](#审核合规性说明)
 - [常见问题](#常见问题)
+- [更新记录](#更新记录)
 - [已知限制](#已知限制)
 - [问题、建议反馈链接和渠道](#问题建议反馈链接和渠道)
 - [对发布者和其他贡献者的支持](#对发布者和其他贡献者的支持)
@@ -79,6 +80,26 @@
 - **国内 APP 性能优化**：针对抖音/快手等国内 APP 占用高的问题，系统级限制后台进程数（4个）、禁用自动同步/后台数据/网络扫描、CPU/GPU 深度优化、动画半速（0.5）、lmkd 内存管理优化
 - **Go 合并守护进程**：音频修复 + 分辨率自动切换合并为单个 androidemu_daemon 进程，减少 Go runtime 内存占用（约省 5-8MB）
 - **可选资源限制**：docker-compose 中预置注释好的 CPU/内存限制配置，用户可根据 NAS 性能自行启用
+- **【v3.8.9】seccomp 安全加固（安卓主容器）**：Docker 在 `privileged` 下会解除默认 seccomp 过滤，而 redroid 运行又必须 privileged；本版本为该容器挂回自定义 seccomp 过滤，屏蔽「加载/卸载内核模块、kexec 换内核、reboot 重启整机、开关 swap、改动系统时间、原始 IO 端口访问」等会直接作用到整台 NAS 的系统调用（实测容器内 `insmod` 返回 Operation not permitted）。实测不影响开机、投屏/音频、ADB 与 APK 安装
+- **【v3.8.9】安全自查留痕**：每次部署后在应用数据目录生成 `security.status`，记录 seccomp 是否生效、容器内 `su` 权限位、ADB 监听地址与 SELinux 状态，便于自查与审核核对
+- **【v3.8.9】安全说明补齐**：包内《权限说明》第 7 条写明 SELinux 无法启用的实测依据（飞牛内核未加载 SELinux LSM，宿主为 AppArmor 体系）、seccomp 加固范围与剩余风险，并给出可复现的核对命令
+- **【v3.8.9】依赖应用声明（binder）**：manifest 新增 `install_dep_apps = binder_linux_driver`，应用中心详情页会显示「依赖的应用」卡片（应用中心实测：卡片显示「binder_linux 驱动」，可在此直接安装/停用），提示先安装并启用依赖应用「binder_linux」；未安装或未启用时，应用中心会阻止安装/启用本应用并给出提示。x86 以及尚未内建 binder 的内核由该依赖应用拉起内核模块并挂载 binderfs（飞牛 6.18.18 及以后内核已内建 binder，依赖应用仅作拉起与校验）
+- **【v3.8.9】WebRTC 网络架构修复**：穿云投屏容器由 host 网络改为 bridge 网络并配置端口映射（8443/3478/TURN 中继段），修复 redroid 容器无法访问宿主机端口导致的 WebRTC ICE 握手失败、设备无法上线问题；Agent 改用容器地址直连信令与 TURN，浏览器侧 TLS 由飞牛统一网关终结（容器内关闭 USE_TLS）
+- **【v3.8.9】TURN 中继端口段固定 50000-50100**：中继段保持 `50000-50100` 不变（compose 的 `ports` 与容器内 `COTURN_MIN_PORT/COTURN_MAX_PORT` 必须一致，coturn 不支持端口转换）。**不随版本变动**——此前试行的「自动避让 / 25000-25099」方案已撤销，避免破坏老用户已有的端口转发规则。如需改端口，用 `bash scripts/set_ports.sh` 统一调整并同步路由器/穿透工具
+- **【v3.8.9】OPUS 音频编码器修复（Codec2）**：通过启用 Codec2 软件编解码器（debug.stagefright.ccodec=1、c2software=1，重启 media 服务）使穿云投屏默认的 OPUS 编码正常初始化；新增 audio_fix.py 守护进程（每 30 秒巡检自动补回），彻底修复无声音、连接崩溃问题
+- **【v3.8.9】DEFAULT_SETTINGS 单引号修复**：修复 docker-compose 中环境变量被单引号包裹、导致 /api/default_settings 返回非法 JSON、前端解析失败的问题
+- **【v3.8.9】安全加固**：部署流程自动将容器镜像自带的 userdebug su 收紧为不可执行（容器重建后自动重新施加），ADB 调试端口默认仅监听 127.0.0.1，防止未授权提权
+- **【v3.8.9】国内 APP 性能优化（运行优先）**：部署完成后异步补跑一次 bg-dexopt-job（补偿启动期 dex2oat=verify，提升国内 APP 运行期性能），每次开机仅执行一次、延后执行、失败不影响任何功能；空闲时定期回收应用缓存防膨胀
+- **【v3.8.9】容器反复重启修复（keystore）**：`/data/misc/keystore/persistent.sqlite` 属主/权限被破坏时，keystore2 崩溃并连带 system_server 每约 10 秒崩溃一次，表现为「正在启动手机…」无限循环、内存锯齿。现改为**先修复属主并保留数据**、修不好才重建该库；开机前即纠正属主且不重启容器；`flock` 单实例避免并发冲突；文件不存在（Android 9/10）视为不适用并跳过
+- **【v3.8.9】飞牛网关与 8443 页面 UI 一致**：网关侧原本额外注入移动端自适应 CSS 与全屏处理，直连 8443 没有，导致同一前端在两条入口上界面不同（手机端直连会横向溢出）。现将这份样式下沉到容器内 `index.html`，两条入口拿到的页面完全一致
+- **【v3.8.9】大文件上传修复（Expect: 100-continue）**：文件中心/终端上传较大 APK 时，客户端先发 `Expect: 100-continue` 并等待临时响应，网关原先不回应导致上传卡死/超时。现按 RFC 7231 立即回 `100 Continue`，并剥掉客户端原始 `Content-Length`/`Expect`，避免上游收到重复头
+- **【v3.8.9】升级自动更新穿云投屏容器**：此前 `pull_policy: missing` + 「镜像已存在即跳过」导致升级从不拉取新 `:latest`。升级时现主动刷新浮动标签镜像，并做镜像可用性冒烟校验（不合格不采用、失败不阻断升级）
+- **【v3.8.9】NVIDIA 显卡支持与 GPU 配置修正**：完整识别 NVIDIA 设备节点（`nvidiactl`/`nvidia0`/`nvidia-uvm`/`nvidia-modeset`）并挂载完整用户态驱动栈（libcuda、GBM 分配器、EGL/GLES/GLX、编码库、`nvidia-vaapi-driver`）；仅 NVIDIA 且未开启 `nvidia_drm.modeset` 时自动回退软件渲染保证开机；同时修正两处工程缺陷——`redroid_gpu_node` 因 sed 分隔符与路径 `/` 冲突而**从未写入**，以及切回软件渲染时 NVIDIA 直通行因正则只匹配行尾 `/dev/nvidia` 而**残留**（会导致 compose 引用不存在设备、容器创建失败）
+- **【v3.8.8】穿云投屏 0.4.1 升级**：同步上游最新版，修复无实体屏幕云手机（redroid）接入异常、加固被控端稳定性、息屏智能降频、专属 TURN 动态下发，外网穿透更灵活
+- **【v3.8.8】OPUS 音频编码器修复**：通过注入 OMX.google.opus.encoder 配置到 redroid 容器，修复穿云投屏默认 OPUS 编码初始化失败导致的无声音、连接崩溃问题，音频稳定可用
+- **【v3.8.8】外网访问提示框自动隐藏**：穿云投屏 0.4.1 新增的"外网访问"提示框无关闭按钮，本版本注入 JS 自动检测并在显示 3 秒后淡出关闭，不遮挡画面
+- **【v3.8.8】TUN 设备支持**：自动检测并创建宿主机 /dev/net/tun 设备并挂载到安卓容器，兼容 VPN / 代理类应用（如企业远程办公、合法 VPN 服务），避免因缺少虚拟网络设备导致应用闪退
+- **【v3.8.8】安全收紧**：实测 no-new-privileges 与 ro.secure=1/adb.secure=1/selinux=enforcing 会破坏容器内进程及穿云投屏连接，均已回退；容器仅保留最小特权（webrtc 仅 CAP_SYS_NICE），应用本体非 root 运行
 
 ---
 
@@ -94,8 +115,10 @@
 | 存储 | 4 GB 可用 | 8 GB+（含镜像约 2GB） |
 | 网络 | 局域网 | — |
 
-> **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染；在下载应用之前必须安装 binder_linux 驱动（应用中心里面有，直接搜索就可以），否则无法使用或者被拒绝安装。
-> **ARM 设备**：自动使用软件渲染（gpu_mode=guest），无需额外驱动，也不需要 binder_linux。
+> **依赖应用（两种架构都需要）**：本应用在应用清单中声明了依赖应用「binder_linux」（应用中心 appname = `binder_linux_driver`），用于提供容器化安卓必需的内核 binder 支持。请在应用中心先安装并启用该依赖应用；未安装或未启用时，应用中心会阻止安装/启用本应用并给出提示。x86 及尚未内建 binder 的内核由该依赖应用拉起内核模块并挂载 binderfs（飞牛 6.18.18 及以后内核已内建 binder，依赖应用仅作拉起与校验）。
+> **端口调整**：首次安装时可在安装向导的「端口设置」中选择端口；**升级不会改动端口**（升级向导已不再包含端口设置）。安装后如需调整，执行 `bash /var/apps/androidemu/target/scripts/set_ports.sh --show` 查看当前端口，用 `--web 9443 --turn 3478 --adb 5556` 修改；容器内实际监听端口固定（画面 8443 / TURN 3478 / 安卓 adb 5555），此项调整的是对外映射用的端口，改完请在路由器或穿透工具同步。
+> **X86 设备**：需要 Docker 支持 `/dev/dri` 直通以启用硬件加速；无 GPU 时自动回退软件渲染。
+> **ARM 设备**：自动使用软件渲染（gpu_mode=guest）；多数 ARM 内核已内建 binder/binderfs，但依赖应用「binder_linux」同样需要安装并启用。
 >
 > **架构兼容性说明**：X86_64 已在飞牛 fnOS 上充分测试；ARM64（aarch64）代码层面已做适配（自动软件渲染、容器内 binderfs、架构判断），但因测试设备有限，建议 ARM 用户安装后留意启动状态，如有问题欢迎通过下方渠道反馈。
 
@@ -108,16 +131,17 @@
 | 端口 | 协议 | 用途 | 局域网使用 | 外网访问 |
 |------|------|------|-----------|---------|
 | 8443 | TCP | 穿云投屏 Web 界面 + 信令 | 自动可用（飞牛反代） | 需自行配置反向代理/内网穿透 |
-| 3478 | TCP+UDP | TURN/STUN 中继（WebRTC 投屏必需） | 自动可用（host 网络） | 需自行端口映射或内网穿透 |
+| 3478 | TCP+UDP | TURN/STUN 中继（WebRTC 投屏必需） | 自动可用（宿主端口映射） | 需自行端口映射或内网穿透 |
 | 5556 | TCP | ADB 调试（外部 adb connect） | **默认仅本机可用**（需手动开放后局域网可用） | 需自行端口映射或内网穿透 |
-| 50000-50100 | UDP | WebRTC 媒体流（TURN relay 备用） | 自动可用（host 网络） | 通常无需外网开放，TURN 走 3478 即可 |
+| 50000-50100 | UDP | WebRTC 媒体流（TURN 中继端口段） | 自动可用（宿主端口映射） | 如经 TURN 中继传媒体则需一并放通本端口段 |
 
 > **注意**：
 > - 飞牛应用中心的 `service_port` 仅声明 8443，用于统一网关反代，不代表软件只监听这一个端口。
-> - webrtc 容器使用 `host` 网络模式，3478 和 50000-50100 直接监听宿主机，无需 Docker 端口映射。
+> - 自 3.8.9 起 webrtc 容器由 `host` 网络模式改回默认 `bridge` 网络：8443/3478/50000-50100 由 Docker 端口映射发布（`host` 模式实测会导致 redroid 容器内 Agent 的 ICE 协商不通、设备不上线，已弃用）。
 > - ADB 5556 由宿主机 socat 进程转发到安卓容器的 5555，非 Docker 映射。
 > - 8443、3478、50000-50100 在局域网内自动可用，无需配置。
-> - 需要外网访问时，8443 走反向代理即可；WebRTC 投屏若在外网使用，必须同时让 3478（TCP+UDP）可达，否则会黑屏或一直转圈。
+> - **TURN 中继端口段固定为 50000-50100，不做自动避让**：compose 的 `ports` 与容器内 `COTURN_MIN_PORT/COTURN_MAX_PORT` 必须一致（coturn 不支持端口转换），因此该端口段**不随版本变动**。此前试行的「自动避让 / 25000-25099」方案已撤销——它会改动端口映射，破坏老用户已经配好的路由器转发规则。如需调整，请用 `bash /vol1/@appcenter/androidemu/scripts/set_ports.sh` 统一修改，并同步路由器或穿透工具。
+> - 需要外网访问时，8443 走反向代理即可；WebRTC 投屏若在外网使用，必须同时让 3478（TCP+UDP）可达，否则会黑屏或一直转圈；若两端直连候选不通、媒体改为经 TURN 中继传输，还需让 UDP 中继段（固定 50000-50100）一并可达（容器内 coturn 的中继端口段）。
 
 
 
@@ -304,7 +328,7 @@ https://<NAS_IP>:<NAS_端口>/app/androidemu/
 ```
 也可直接访问画面服务原生端口：
 ```
-https://<NAS_IP>:8443
+http://<NAS_IP>:8443
 ```
 
 局域网下 WebRTC 投屏可正常使用，低延迟、高帧率，所有功能（文件管理、终端、投屏设置等）均可用。
@@ -313,12 +337,15 @@ https://<NAS_IP>:8443
 
 通过飞牛官方提供的远程域名访问时：
 - ✅ WebSocket 投屏自动启用，可正常观看和操控画面
-- ⚠️ 文件管理等依赖 WebRTC DataChannel（UDP）的功能可能不可用
+- ✅ **v3.8.8（穿云投屏 0.4.1）起**：穿云投屏专门适配了飞牛网关，检测到飞牛环境时自动切 WebSocket 走飞牛官方网关 443 端口，外网访问更稳定
+- ⚠️ 文件管理、终端等依赖 WebRTC DataChannel（UDP）的功能在外网可能受限（飞牛反向代理只透传 TCP）
 - ⚠️ 帧率和延迟受上行带宽影响
 
 > 原因：飞牛反向代理只透传 TCP（HTTP/HTTPS/WebSocket），不透传 UDP。WebRTC 媒体流走 UDP，因此自动降级为 WebSocket 投屏。
 >
 > v3.6.7+ 增强了外网自动适配：自动检测并切换 WebSocket 投屏模式，若切换失败则提供 MJPEG 降级画面，确保外网访问始终可用。
+>
+> **v3.8.8 外网终端/文件中心说明**：穿云投屏 0.4.1 新增"专属 TURN 动态下发"，在飞牛网关环境下会尝试通过 WebSocket 通道承载 DataChannel 数据。如终端/文件中心在外网仍不可用，建议在局域网内使用，或通过 frp 等工具同时暴露 TCP 8443 和 UDP 3478（见下文）。
 
 ### 飞牛 APP
 
@@ -331,7 +358,7 @@ https://<NAS_IP>:8443
 如果你有公网 IP 或使用内网穿透（如 frp、ZeroTier、Tailscale 等）：
 - ✅ 将 8443 端口映射到外网，可直接使用 WebRTC 投屏
 - ✅ 需要在「投屏设置」中将「外网访问地址（WebRTC 媒体流）」设置为你的公网域名或 IP
-- ✅ TURN 中继服务器已内置，确保 UDP 3478 端口可达
+- ✅ TURN 中继服务器已内置，确保 UDP 3478 端口可达；若媒体需要经 TURN 中继传输（直连候选不通时的兜底路径），还需一并放通 UDP 50000-50100（中继端口段）
 
 #### 外网访问专项说明（重要）
 
@@ -361,6 +388,8 @@ remote_port = 3478
 ```
 
 配置后通过 `http://<你的域名>:8443` 访问，WebRTC 投屏、文件管理、终端等全部功能可用。
+
+> 补充：容器内的 TURN（coturn）中继端口段为 **UDP 50000-50100**（见 `docker-compose.yaml` 的端口映射）。两端直连候选（STUN/srflx）不通时，媒体会改走 TURN 中继，此时需让该 UDP 端口段同样可达（frp 等工具若支持端口段可直接转发；不支持时可做端口映射或路由放行）。
 
 **WS 投屏连接慢的解决方法：**
 1. 耐心等待 10-30 秒，WebRTC 超时后会自动回退到 WS
@@ -508,6 +537,8 @@ remote_port = 3478
 > **重要说明**：ADB 是 Android 调试通道，**只用于执行命令、安装 APK、调试，不传输画面**。查看安卓画面请通过穿云投屏 Web 界面（`http://<NAS_IP>:8443`）或穿云投屏 APP。Scrcpy / QtScrcpy 等依赖 scrcpy-server 的远程控制软件**不兼容**（本容器使用穿云投屏 cloudphone-agent，无 scrcpy-server），会出现一直转圈无画面的情况。
 
 ADB 5556 **默认仅监听 127.0.0.1**（安全考虑，ADB 无密码），NAS 本机可直接连接。如需从局域网其他设备（如电脑）连接，需先手动开放端口：
+
+> ⚠️ **安全提醒**：容器镜像是 userdebug 构建（`ro.debuggable=1`），因此**能连上 5556 的设备就等于拿到容器 root**（`adb shell` 直接是 root，无需 su）。请只在需要调试时、在可信局域网内开放，**用完立刻改回 `ADB_BIND=127.0.0.1`**，切勿把 5556 映射到公网（详见《权限说明》第 7 条与本文档「审核合规性说明」第 9 节）。
 
 ### 一、开放 ADB 5556 端口
 
@@ -693,7 +724,7 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 │  │                  │  │                 │  │
 │  │  Android 12      │  │  信令服务 :8443  │  │
 │  │  ADB :5556       │  │  TURN  :3478    │  │
-│  │  bridge 网络     │  │  host 网络       │  │
+│  │  bridge 网络     │  │  bridge 网络     │  │
 │  │  privileged      │  │  SYS_NICE       │  │
 │  └──────────────────┘  └─────────────────┘  │
 │            │                    │           │
@@ -735,7 +766,7 @@ androidemu 从硬件到浏览器画面共经过 **3 个核心翻译/转换层**�
 - **scrcpy** 通过 Android 的 surfaceflinger 采集画面帧
 - 编码成 **H.264** 视频流（码率 2-10Mbps，长边 960px）
 - 通过 **WebRTC**（TURN/STUN 中继 + P2P）传输到浏览器
-- 浏览器解码后显示，**音频已启用**（3.7.3+ 修复：通过启用 Codec2 框架加载 c2.android.opus.encoder 软件编码器）
+- 浏览器解码后显示，**音频已启用**（v3.8.9 修复：启用 Codec2 软件编解码器使穿云投屏默认的 OPUS 编码正常初始化，并由 audio_fix.py 守护进程持续巡检补回，音频稳定传输）
 
 ### 第 4 层：ABI 指令集翻译层（libndk_translation，默认已启用）
 
@@ -784,11 +815,11 @@ WebRTC 接收 H.264 流 ←── TURN/STUN 中继 ←── scrcpy 编码 ←�
 - 通过 `_drop_privileges()` 函数实现自动降权（uid=0 时自动切换）
 - config/privilege 声明 `run-as=package`
 
-### 3. Host 网络模式
+### 3. 网络模式（3.8.9：bridge + 宿主端口映射）
 
-- `androidemu-webrtc` 容器使用 `network_mode: host`
-- **原因**：fnOS 会拦截「bridge 容器 → 宿主局域网 IP」的访问，bridge 模式下云手机后台无法连接本机 ADB 端口
-- **影响面**：监听端口与原先端口映射完全一致（8443 TCP、3478 TCP/UDP、50000-50100 UDP），不新增任何端口；容器仍不使用 privileged
+- `androidemu-webrtc`（云手机画面服务）自 3.8.9 起使用默认 `bridge` 网络，仅发布 8443 TCP、3478 TCP/UDP、50000-50100 UDP
+- **原因**：fnOS 会拦截「bridge 容器 → 宿主局域网 IP」的访问；3.8.8 曾据此改用 `host` 模式，但实测 host 模式下 redroid 容器内的 Agent 只能经网桥网关连宿主信令/TURN，ICE 协商路径不通（表现为 WebRTC 连接失败、设备不上线），故 3.8.9 改回 bridge：redroid 与 webrtc 同处 `androidemu_default` 网络，Agent 用 compose 服务名 `webrtc` 直连信令(8443)与 TURN(3478)，纯容器间通信、不经宿主防火墙
+- **影响面**：监听端口与原先完全一致（8443 TCP、3478 TCP/UDP、50000-50100 UDP），不新增任何端口；容器仍不使用 privileged；浏览器侧 TLS 由飞牛统一网关终结（容器内 `USE_TLS=false`，agent 不支持 TLS）
 
 ### 4. Docker 组权限
 
@@ -818,12 +849,35 @@ WebRTC 接收 H.264 流 ←── TURN/STUN 中继 ←── scrcpy 编码 ←�
 
 ### 7. GMS（谷歌服务）合规说明
 
-- **应用包本身不包含GMS二进制文件**：FPK安装包仅约150KB，不含任何Google专有软件
+- **应用包本身不包含GMS二进制文件**：FPK安装包仅约8MB，不含任何Google专有软件
 - **GMS为可选安装**：安装向导默认选择「不安装」，用户需主动选择「安装」并确认法律声明后才会触发
 - **安装时实时获取**：选择安装后，脚本自动检测系统架构（x86_64/arm64），从独立的GMS文件载体镜像中提取文件，安装到标准版redroid容器的系统分区
 - **GMS来源**：x86_64版本GMS文件提取自第三方redroid衍生镜像（whojk/redroid），arm64版本来自MindTheGapps公开项目；两者均为Google专有软件的第三方重新打包
 - **法律责任**：GMS（Google Mobile Services）是Google LLC的专有软件，受版权保护。本项目不直接分发GMS二进制文件，仅供个人学习研究使用。使用GMS需遵守Google服务条款，相关法律责任由使用者自行承担
 - **合规替代方案**：如仅需推送通知、定位、地图等基础功能，推荐使用开源的microG（Apache 2.0协议），无法律风险
+
+### 8. TUN 设备与 VPN/代理应用兼容性
+
+- **现状**：v3.8.8 起在安卓容器中挂载 `/dev/net/tun` 虚拟网络设备，安装脚本自动检测并创建宿主机 tun 设备
+- **用途**：仅用于兼容需要虚拟网络接口的应用（如企业远程办公、合法 VPN 服务等），作用域仅限于容器内部，不影响宿主机网络安全
+- **安全声明**：本应用不鼓励、不支持任何利用代理或 VPN 工具违反国家通信管理法律法规的行为；使用者应自行遵守所在地法律法规，因违法使用产生的一切责任由使用者自行承担
+- **权限影响**：tun 是 Linux 标准虚拟网络设备，不新增宿主权限，不突破容器隔离边界
+
+### 9. SELinux、容器内 root 与 seccomp 加固说明（3.8.9 更新）
+
+- **SELinux 状态**：容器内 `getenforce` 返回 `Disabled`。原因是飞牛默认内核**未加载 SELinux LSM**（实测 `/sys/kernel/security/lsm` = `capability,landlock,lockdown,yama,bpf,apparmor,ima,evm`，宿主 LSM 体系是 AppArmor），容器内也看不到 `/sys/fs/selinux`。因此 SELinux 在本应用层面**无法启用**（不是"没补"，是内核未提供该模块）；强行用 redroid 启动参数指定 enforcing 会拦截容器内系统服务、导致容器无法启动（3.8.8 实测已回退）
+- **容器内 root 的实际边界（如实说明）**：安卓主容器 `androidemu-android` 因 redroid 上游要求必须 `privileged`（非特权方案实测无法进入启动流程，见 [redroid-doc #591](https://github.com/remote-android/redroid-doc/issues/591)）。因此容器内 root **不等于**普通非特权容器的 root：Docker 在 privileged 下会解除默认 seccomp/AppArmor 约束，且 `cap_drop`、device 规则都**不再生效**（实测 CapEff 仍为全量 `0x1ffffffffff`）。本应用的收敛做法是：①直通设备裁剪到 `/dev/dri`、`/dev/binder`、`/dev/net/tun` 三个必需项；②用自定义 seccomp 把最危险的系统调用挡回 `EPERM`（见下条）
+- **3.8.9 seccomp 加固**：`docker-compose.yaml` 的 redroid 服务挂 `security_opt: seccomp=<应用目录>/docker/androidemu-redroid-seccomp.json`（默认放行 + 拒绝下列调用：`init_module`/`finit_module`/`delete_module` 内核模块加载、`kexec_load`/`kexec_file_load` 换内核、`reboot` 重启整机、`swapon`/`swapoff`、`acct`、`iopl`/`ioperm`、`settimeofday`/`clock_settime` 改系统时间）。这些调用在容器内原本可直接作用于整台 NAS（例如容器内重启会重启 NAS、改时间会影响 NAS 上其它服务），现一律被拒。实测：容器内 `Seccomp: 2`、`insmod` 返回 Operation not permitted；Android 正常开机、投屏/音频（Codec2 Opus）/ADB/APK 安装/容器停止与重建全部正常
+- **缩小攻击面的既有措施**：ADB 5556 默认仅绑定 `127.0.0.1`（需在面板手动开放；镜像为 userdebug 构建，即"连上 5556 即容器 root"，用完建议关闭）；容器内 userdebug `su` 每次部署收紧为权限 `000`（容器重建后自动重新施加）；容器内不预置 Magisk；应用本体以 `docker-androidemu` 用户（run-as=package）运行，无任何宿主 root 常驻进程
+- **剩余风险（不粉饰）**：若容器内 root 被取得（例如自行开放 ADB 后从外部连入，或安装了带提权漏洞的来路不明 APK），其能力**不止于容器内部**——privileged 容器的 `/dev` 中包含宿主设备节点（磁盘、`/dev/mem` 等），这是上游 redroid 强制 privileged 带来的固有属性，Docker 层面无法在保留 privileged 的前提下收窄（`cap_drop` 无效，已实测）。3.8.9 的 seccomp 过滤封掉了其中最直接的逃逸/破坏路径，但无法消除该固有属性。因此请：不要把本应用端口直接暴露到公网；ADB 只在局域网按需开放、用完即关；只安装可信来源的 APK
+- **自查命令**（容器运行中，可自行核对）：
+  ```bash
+  docker exec androidemu-android sh -c 'grep ^Seccomp /proc/1/status'   # 期望 Seccomp: 2
+  docker exec androidemu-android ls -l /system/xbin/su                   # 期望 ----------
+  ss -tln | grep 5556                                                    # 期望 127.0.0.1
+  cat /vol1/@appdata/androidemu/security.status                          # 部署时自动留痕
+  ```
+- **与飞牛审核的关系**：飞牛安全审核关注应用是否以宿主 root 运行、是否突破容器隔离影响宿主机。本应用容器内 root 是 Android 系统运行的必要条件（redroid 上游技术要求），应用本体不申请宿主 root；对容器内 root 的收敛措施与剩余风险如上，全部可在设备上复现核对
 
 ---
 
@@ -853,11 +907,49 @@ A: 这是飞牛 **手机 APP 端**应用中心的状态机错误，通常是因�
 
 ### Q: 首次安装时弹出「无法安装 androidemu - 执行脚本出错且原因未知」
 
-A: 优先检查 **binder 驱动**是否已安装：
-- **x86 设备**：需先在飞牛应用中心安装「binder_linux 驱动」依赖应用，产生 `/dev/binder` 设备节点后再安装本应用
-- **ARM 设备**：多数设备内核已内置 binder（如 RK3588 等），但部分精简内核可能未启用，需确认内核支持 `CONFIG_ANDROID_BINDER_IPC` / binderfs
+A: 优先检查 **依赖应用「binder_linux」**是否已安装并启用：
+- 本应用清单中声明了依赖应用 `binder_linux_driver`（显示名「binder_linux」）。请在飞牛应用中心先安装并启用它，再安装本应用；应用中心在依赖未满足时会直接拦住安装（提示"依赖的 binder_linux 未安装或未启用"）。
+- **x86 及尚未内建 binder 的内核**：由该依赖应用拉起内核模块并挂载 `/dev/binderfs`、建立 `/dev/binder` 等设备节点（飞牛 6.18.18 及以后内核已内建 binder，依赖应用仅作拉起与校验）。
+- **ARM 设备**：多数设备内核已内置 binder（如 RK3588 等），依赖应用同样需要在应用中心安装并启用；若内核确实未启用 `CONFIG_ANDROID_BINDER_IPC` / binderfs，请联系内核/固件提供方。
 
 若已安装驱动（或 ARM 设备本身支持）但仍弹出此错误，请务必通过下方「问题反馈」章节中的任一链接反馈，并提供 /var/apps/androidemu/var/uninstall_init.log 或对应的安装日志，以便排查具体原因。
+
+### Q: 安装时提示「应用 安卓模拟器（国内版）安装失败。原因：执行应用回调脚本异常。」
+
+A: 这是飞牛应用中心在执行安装回调脚本（install_callback）时出错导致的，常见原因及排查：
+
+**1. 检查安装日志**
+```bash
+cat /var/apps/androidemu/var/install.log
+```
+日志中会记录脚本执行的每一步和具体错误信息。
+
+**2. 常见原因：**
+| 原因 | 解决方法 |
+|------|---------|
+| 依赖应用未安装/未启用 | 先在应用中心安装并启用依赖应用「binder_linux」`(binder_linux_driver)`，再重试安装 |
+| 磁盘空间不足（<4GB） | 清理磁盘空间，确保至少 4GB 可用 |
+| 内存不足（<2GB） | 关闭其他占用内存的应用，确保至少 2GB 可用 |
+| Docker 服务异常 | 在飞牛 Docker 中重启 Docker 服务后重试 |
+| 脚本无执行权限 | 极少数情况下 fpk 解包后脚本权限丢失，可尝试重新下载 fpk 安装包 |
+| 旧版本残留 | 先卸载旧版本（选择删除数据），再重新安装 |
+
+**3. 手动排查步骤：**
+```bash
+# 检查 binder 设备
+ls -la /dev/binder*
+
+# 检查磁盘空间
+df -h /
+
+# 检查内存
+free -h
+
+# 检查 Docker 状态
+docker info | head -5
+```
+
+如以上方法均无法解决，请将 install.log 内容通过下方反馈渠道发给我们。
 
 ### Q: 安装后打不开，页面显示 400 错误（可能多个应用同时出现）
 
@@ -966,9 +1058,32 @@ A: 使用WebSocket投屏（局域网或外网环境）时，若出现「连接�
 - **超过2分钟仍显示连接失败**：请按以下步骤排查：
   1. 确认安卓容器已完全启动（首次启动约需1-2分钟），可在飞牛Docker中查看容器状态
   2. 刷新页面重新进入
-  3. 局域网用户可尝试直接访问 `https://<NAS_IP>:8443`
+  3. 局域网用户可尝试直接访问 `http://<NAS_IP>:8443`
   4. 外网用户可使用页面右上角提示中的MJPEG降级画面查看
   5. 如仍无法解决，请查看容器日志或通过反馈渠道联系我们
+
+### Q: 为什么穿云投屏的 8443 端口只能用 HTTP，不能用 HTTPS？
+
+A: **不是做不到，是当前刻意配成明文（`USE_TLS=false`）**。信令程序本身支持 TLS（二进制含 `ListenAndServeTLS`），镜像里也带了 `create_certs.sh` 与 `server.crt/key/p12`，只是默认没开。原因有三个：
+
+1. **证书是自签的，且 CN 写死 `localhost`**。`/app/certs/create_certs.sh` 用 `openssl x509 -req -signkey` 自签，访问 `https://<NAS_IP>:8443` 会同时触发「证书不受信任」和「证书名称不匹配」两个错误；手机 WebView 往往直接拦截或白屏，比 HTTP 更难用。
+2. **TLS 已经由飞牛统一网关终结**。从应用中心点开走的是 fnOS 网关（443/65535 入口），浏览器→网关是 HTTPS，网关→8443 是本机回环明文。8443 再套一层自签 TLS 没有收益。`gateway.py` 会读 compose 里的 `USE_TLS=false` 自动切明文上游（启动日志会显示「上游 明文」）。
+3. **容器内的 Agent 只连 `ws://`（最关键）**。安卓容器里的穿云投屏 Agent 用明文 WebSocket 连信令；一旦信令改 wss，Agent 不信任那张自签证书，日志会报 x509 错误、**设备直接不上线**，画面就没了。
+
+各网络模式的 TLS 取值（`scripts/net_mode.sh`）：
+
+| 模式 | `USE_TLS` | 适用场景 |
+|------|-----------|----------|
+| `lan` | `false` | 局域网直连（默认） |
+| `lanhttp` | `false` | 局域网且明确关闭 TLS，免证书提示 |
+| `wan` | `true` | 公网/域名访问 |
+| `proxy` | `false` | 内网穿透/反向代理（前面已有代理终结 TLS） |
+
+**想让 8443 也跑 HTTPS**，推荐顺序：
+
+1. 保持 8443 明文，TLS 交给飞牛网关或前置反代（挂真证书）——这也是当前设计的意图；
+2. 把 `/app/certs/server.crt|key` 换成**匹配你域名的真实 CA 证书**（如 Let's Encrypt），再在 compose 里设 `USE_TLS=true`，访问 `https://<域名>:8443` 就不会有警告；
+3. 改 TLS 后**别忘了 Agent**：需改用 wss 并信任证书，执行 `bash scripts/agent_helper.sh deploy <目录> --tls`，否则设备会掉线。
 
 ### Q: 容器反复重启
 
@@ -986,7 +1101,7 @@ docker logs androidemu-android
 |-----------|------|---------|
 | 与 `gpu`、`dri`、`SurfaceFlinger` 相关的报错 | GPU 直通失败 | 见下文「安卓容器内存很低」中的 GPU 修复命令 |
 | `out of memory`、`lowmemory` | 内存不足 | 关闭其他应用，至少保留 2GB 可用内存 |
-| `binder`、`binderfs` 相关报错 | binder 驱动缺失 | x86 设备先在应用中心安装 `binder_linux` 驱动 |
+| `binder`、`binderfs` 相关报错 | binder 支持缺失 | 先在应用中心安装并启用依赖应用 `binder_linux`（`binder_linux_driver`） |
 
 **3. ARM 设备额外检查：** 确认 compose 中包含 `androidboot.redroid_gpu_mode=guest`（软件渲染），ARM 设备通常无 GPU 直通。
 
@@ -1206,6 +1321,9 @@ A: **v3.7.0+ 用户**：打开应用页面，如果上游服务暂时不可用�
 
 A: 正常 Android 12 启动后内存应在 300MB 以上（单个安卓容器内的系统占用，不含宿主其他服务）。若容器在运行但内存只有 100-200MB，说明安卓系统未完成启动（`boot_completed != 1`），agent 无法部署，设备永远不在线。按以下步骤排查：
 
+> ⚠️ **先看自动诊断，不要用 `docker logs` 排查**：本应用为省性能关闭了串口控制台（`androidboot.console=0`），因此 **`docker logs androidemu-android` 恒为空是正常的**（实测 0 字节、0 行），`docker logs | grep error` 只会一片空白——这不是故障，也不是"没有日志"。真实启动日志只存在于容器内 logcat。
+> **3.8.9 起新增「开机守护」**（`scripts/boot_guard.sh`）：持续巡检 boot 状态，把诊断（含真实 logcat 证据）写入 `/var/apps/androidemu/var/boot_diag.status`；**并在有明确 GPU/DRM 崩溃证据时自动回退软件渲染并重建容器**（一次性），通常无需人工干预。
+
 **1. 确认启动状态：**
 ```bash
 docker exec androidemu-android getprop sys.boot_completed
@@ -1213,17 +1331,22 @@ docker exec androidemu-android getprop sys.boot_completed
 - 返回 `1` → 已启动，跳到第3步
 - 返回空或 `0` → 未启动，继续第2步
 
-**2. 查看启动日志找原因：**
+**2. 查看诊断文件（真实日志在这里，不在 docker logs）：**
 ```bash
-docker logs androidemu-android --tail 80 2>&1 | grep -iE "error|fail|panic|binder|surface|zygote|boot"
+cat /var/apps/androidemu/var/boot_diag.status         # 守护自动写的诊断
+bash /var/apps/androidemu/scripts/boot_guard.sh once  # 立刻再诊断一次
+bash /var/apps/androidemu/scripts/boot_guard.sh status
 ```
 
-| 日志关键词 | 原因 | 修复方法 |
-|-----------|------|---------|
-| `binder`、`binderfs` | binder 驱动缺失 | x86 设备先在应用中心安装 `binder_linux`，再 `docker restart androidemu-android` |
-| `SurfaceFlinger`、`gpu`、`dri` | GPU 直通失败 | 执行下方 GPU 修复命令 |
+| 诊断结论 / 关键词 | 原因 | 修复方法 |
+|------------------|------|---------|
+| `privileged=false` | 容器丢了特权（Android 无法初始化） | 应用中心「停用 → 启用」重建容器；仍不行请反馈 |
+| logcat 里有 `binder` 报错、`container_binder` 为空 | 内核 binder 不可用 | 应用中心安装并启用依赖应用 `binder_linux`，再 `docker restart androidemu-android` |
+| `logcat_gpu_drm_hits` 很大 / `EGLConfig` / `Failed to open /dev/dri` | GPU 直通在容器内失败 | 守护会自动回退软件渲染并重建；也可执行下方 GPU 修复命令 |
 | `out of memory`、`lowmemory` | 内存不足 | 关闭其他应用，至少保留 2GB 可用内存 |
 | `zygote` 反复重启 | 系统服务崩溃 | 删除数据卷重新初始化（会清空安卓数据）：`docker compose -p androidemu down && docker volume rm androidemu-data && docker compose -p androidemu up -d` |
+
+> 反馈启动问题时请直接附上 `boot_diag.status` 的内容（它已包含容器状态、privileged/设备、binder、GPU 命中数与 logcat 关键行），无需再手工收集。
 
 **3. GPU 修复命令（画面异常或 SurfaceFlinger 崩溃时用，按顺序执行）：**
 
@@ -1268,9 +1391,9 @@ docker cp /var/apps/androidemu/var/agent/cloudphone-agent-amd64 androidemu-andro
 docker cp /var/apps/androidemu/var/agent/libsys_core.so androidemu-android:/data/local/tmp/libsys_core.so
 ```
 
-第 4 步：注入并启动 agent（将 `<NAS_IP>` 替换为你的 NAS 局域网 IP）
+第 4 步：注入并启动 agent（3.8.9 起容器内信令为明文，主机用 `host.docker.internal` 指向网桥网关，**勿填宿主局域网 IP**；也可直接用包内 `scripts/agent_helper.sh deploy <目录>` 一键完成）
 ```bash
-docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling wss://<NAS_IP>:8443/register_agent -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=udp,turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=tcp,stun:<NAS_IP>:3478' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
+docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling ws://host.docker.internal:8443 -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@host.docker.internal:3478?transport=udp' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
 ```
 
 第 5 步：等待 3 秒
@@ -1351,7 +1474,7 @@ docker inspect androidemu-webrtc --format '{{range .Config.Env}}{{println .}}{{e
 
 ### Q: 没有声音 / 声音很小
 
-A: **3.7.3+ 版本已修复音频功能**，默认启用 Opus 软件编码器。如仍无声音，请检查以下两点：
+A: **v3.8.9 版本已彻底修复 OPUS 音频编码器（Codec2）**，默认启用。如仍无声音，请检查以下几点：
 
 1. **连接设置中需手动开启音频**：
    - 电脑端（飞牛 Web 界面）：在穿云投屏的连接设置中勾选「音频」选项
@@ -1366,7 +1489,7 @@ A: **3.7.3+ 版本已修复音频功能**，默认启用 Opus 软件编码器。
    - 第三方软件可能不兼容穿云投屏的 Opus 音频流协议，强行开启可能导致连接失败或无声
    - 穿云投屏 APP 和飞牛 Web 界面已内置音频支持，推荐使用官方客户端
 
-> 技术说明：redroid 镜像默认 `debug.stagefright.ccodec=0` 禁用了 Codec2 框架，导致 opus 编码器不加载。3.7.3 通过 `audio_fix.py` 守护进程自动设置 `debug.stagefright.ccodec=1` 启用 Codec2，容器重启后自动补回。
+> 技术说明：v3.8.9 通过启用 Codec2 软件编解码器（setprop debug.stagefright.ccodec=1、debug.stagefright.c2software=1，重启 media 服务）使 redroid 容器内 swcodec 已带的 c2.android.opus.encoder 正常注册，修复了穿云投屏默认 OPUS 编码初始化失败的问题；audio_fix.py 守护进程每 30 秒巡检并自动补回。旧的"注入 OMX.google.opus.encoder / media_codecs_google_audio.xml"方案已弃用。
 
 ### Q: 外网访问画面卡顿
 
@@ -1468,6 +1591,51 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 - **升级脚本必须健壮**：飞牛升级流程先执行旧版本 uninstall_init，任何命令失败或 stdout 输出都会导致「执行脚本出错且原因未知」，必须 set +e + 输出重定向 + 所有命令 || true
 - **CRLF 行尾会导致 Linux 脚本报错**：所有 shell/Python 脚本必须使用 LF 行尾，否则会出现 `$'\r': command not found`
 - **应用本体降权需注意进程间通信**：gateway.py 降权后 `is_mine(pid)` 只能检查当前用户进程，音频守护也必须降权到同一用户，否则会被反复拉起
+- **webrtc 容器不能 cap_drop ALL**：coturn/node 进程需要基础 capability，`cap_drop: ALL` 会导致容器反复崩溃重启、内存掉到 0B、UI 显示 502；只需 `cap_add: SYS_NICE` 即可
+- **redroid 容器不能强制 selinux=enforcing**：Docker 容器共享宿主机内核，容器内 SELinux 策略不完整，强制 enforcing 会拦截系统服务，导致容器崩溃、内存掉到 0B；保持默认 Disabled 是上游 redroid 的标准配置
+- **redroid 容器不能 ro.secure=1/adb.secure=1**：会影响穿云投屏通过 ADB 连接安卓容器，导致设备不在线；保持默认 ro.secure=0 是 redroid 容器的标准配置
+- **webrtc 容器不要用 host 网络模式**：3.8.8 曾因「bridge 容器 → 宿主局域网 IP 被 fnOS 拦截」改用 host，但实测 host 模式下 redroid 容器内的 Agent 只能经网桥网关连信令/TURN，ICE 协商路径不通（表现为 WebRTC 握手失败、设备不上线）；3.8.9 已改回 bridge，由宿主端口映射提供 8443/3478/TURN 中继段（固定 50000-50100），Agent 用 compose 服务名 `webrtc` 直连
+- **TURN 中继端口段刻意保持 50000-50100（虽然它落在系统临时端口段内）**：3.8.9 开发期曾把中继段改成 25000-25099 并加「自动避让」，理由是 Linux 临时端口段默认 32768-60999，只要 NAS 上任何进程的一个出网 UDP 连接用到段内端口（实测某 ARM NAS 上 `pxy` 占着 50054/UDP），Docker 逐端口绑定就会失败、整个 webrtc 容器停在 Created 起不来（现象是「装好了但设备永远不上线」，`docker ps` 里容器状态还不像崩溃）。**但该改动已撤销**：改端口段会改动 compose 的端口映射，直接破坏老用户已经配好的路由器转发/穿透规则，代价远大于收益。因此最终决定是**固定 50000-50100、不自动避让**，并在文档中如实说明该风险；确实撞端口时用 `scripts/set_ports.sh` 手动改，并同步路由器。同理，compose 的 `ports` 与容器内 `COTURN_MIN_PORT/COTURN_MAX_PORT` 必须同步改（coturn 不支持端口转换）
+- **FPK 顶层 `scripts/` 目录飞牛不会部署**：实测该机器上 30+ 个应用的安装目录结构都是 `cmd/ config/ etc→ home→ ICON* LICENSE manifest meta→ target→ tmp→ var→ wizard/`，没有 `scripts/`。历史上我们放在 FPK 顶层 `scripts/` 的 Go 版统一守护与 supervisor **从未落地过**（cmd/main 每次启动只记一句「未找到脚本」），3.8.9 起已把这些二进制移出包并清理启动入口；要发布可执行文件必须放进 `app/`（会随 `app.tgz` 落到 `${TRIM_APPDEST}/`）
+- **OPUS 编码器靠 Codec2 启用**：redroid 镜像内 opus 库（/system/lib64/libcodec2_soft_opusenc.so）与 swcodec 的 c2.android.opus.encoder 均存在，但默认未启用 Codec2 软件编解码器；3.8.9 通过 setprop debug.stagefright.ccodec=1 + c2software=1 并重启 media 服务启用（无需再注入 OMX 别名，旧的 media_codecs_google_audio.xml 方案已弃用）
+- **privileged 下 cap_drop 无效，seccomp 才是可用的收敛手段**：实测 `privileged: true` + `cap_drop` 时容器内 CapEff 仍是全量 `0x1ffffffffff`（Docker 记录 CapDrop 但不生效），因此无法用减能力的方式给 privileged 容器收窄权限；但 `security_opt: seccomp=<profile>` 在 privileged 下**会生效**（容器内 `Seccomp: 2`），3.8.9 即用此方式屏蔽内核模块加载/kexec/reboot/swap/改时间等调用
+- **no-new-privileges 本应用未启用**：实测该选项会破坏 redroid 与 webrtc 容器内进程权限（音视频编码、信令异常），故两个容器均已移除；提权防护改由“ADB 仅绑 127.0.0.1 + 收紧容器内 userdebug su + webrtc 容器非特权运行 + redroid 容器自定义 seccomp 过滤（3.8.9）”实现
+- **穿云投屏入口脚本是整份 fork，必须跟上游 drift**：本应用用 `entrypoint_custom.sh` 替换上游 `/app/entrypoint.sh`（为修 coturn 只监听网桥 + 加降权/JS 注入），代价是上游新增的入口契约不会自动跟进——实测上游已新增 `CLOUDPHONE_DEVICE_SECRET`（设备注册密钥），3.8.9 已补透传并在 agent 端携带 `-device-secret`。**每次上游镜像更新后应 diff 一次上游 entrypoint**：`docker run --rm --entrypoint cat <img> /app/entrypoint.sh`
+- **keystore 修复必须容忍文件不存在**：`/data/misc/keystore/persistent.sqlite` 是 keystore2（Android 11+）的库；若按「属主不对=损坏」判，Android 9/10（无此文件）会被判损坏 → 每 60 秒删库重启容器 → 无限重启循环。3.8.9 起改为「文件不存在=不适用，跳过」
+- **网关资源改写正则要容忍子目录**：上游前端资源从 `/assets/<name>.js` 换成 `/assets/js/chunk-*.js` 时，扁平正则会让 `?v=` 缓存戳失效（旧 chunk 被缓存）；3.8.9 起字符类含 `/`，是严格超集
+- **`docker logs` 恒为空是设计结果，不是故障**：compose 设了 `androidboot.console=0`（3.3.6 为省性能关闭串口控制台），Android 启动日志只进**容器内 logcat**（实测 docker logs 0 字节、logcat 1.4 万行）。因此任何"grep docker logs 找启动错误"的检测都会永久失效——3.8.9 之前 webrtc_watchdog 的 GPU 自动回退就是这么失效的（且回退后还重建错了容器）。启动问题请用 `bash scripts/boot_guard.sh once` 与 `var/boot_diag.status`
+- **开机卡死要有持续守护，不能只靠一次性检查**：`fix_gpu_perms.sh` 只在安装流程跑一次，错过窗口（容器还没起 / 崩溃还没发生）就不再补救；3.8.9 起由 `boot_guard.sh` 持续巡检，判定依据是「boot 卡住超阈值 **且** logcat 有 GPU/DRM 证据」，两个条件同时满足才自动回退软件渲染并重建 **redroid** 容器（一次性标记防循环）
+- **镜像版本必须单一可信源，禁止在多处写死**：`app/docker/runtime.conf` 是「用哪个 Android 版本 / 哪个上游镜像」的唯一配置点（`ANDROID_VER` 支持 9~16，镜像名按 redroid 官方命名自动拼出；穿云投屏只跟 `latest`）。所有脚本经 `scripts/rtconf.sh` 取值，`tune_compose.sh` 负责把配置写进 compose 的 `image:` 行。**换版本只改这一个文件**（`bash scripts/rtconf.sh show` 可查看当前生效值，`ANDROIDEMU_ANDROID_VER=13` 之类的环境变量可临时覆盖）。这样新增 Android 版本不需要改任何代码，也不会把某个版本写死在某个脚本里
+- **版本相关能力要按「能力探测」启停，而不是按版本号打补丁**：例如音频 Codec2 修复先判断平台是否使用 Codec2 框架（`ro.build.version.sdk >= 29` 或探测到 Codec2 库/属性），不适用时明确说明并跳过，而不是误报成"缺少 Opus 编码器库"；`su` 加固按候选路径探测（`/system/xbin/su`、`/system/bin/su`、`/sbin/su`）；houdini 下载地址按实际 Android 版本拼装。**尚未覆盖**的版本相关资产（GMS 载体包、houdini 各版本包）需按版本单独提供，缺失时脚本会明确跳过而不是硬套
+
+---
+
+## 更新记录
+
+### 3.8.9
+
+1. 修复了容器反复重启的问题 — keystore 数据属主损坏导致系统服务每约 10 秒崩溃、「正在启动手机…」无限循环；现先修属主保数据，开机前即纠正且不重启容器
+2. 修复了飞牛统一网关与 8443 端口界面不一致的问题 — 移动端自适应样式与全屏处理下沉到页面本身，两条入口界面统一
+3. 修复了文件中心/终端上传 APK 或文件失败的问题 — 大文件上传时正确处理 Expect: 100-continue，不再卡死超时
+4. 修复了升级后穿云投屏容器不自动更新的问题 — 升级时主动刷新 :latest 镜像并做可用性校验
+5. 修复了 redroid12 不支持英伟达显卡的问题 — 完整识别 NVIDIA 设备与用户态驱动栈，必要时回退软件渲染保证开机
+6. 修复了 GPU 渲染节点未写入、软件渲染残留 NVIDIA 直通的问题 — 修正配置写入与清理逻辑，避免容器创建失败
+7. 修复了 WebRTC 握手失败、设备不上线的问题 — 穿云投屏容器改回 bridge 网络并配置端口映射
+8. 修复了无声音与连接崩溃的问题 — 启用 Codec2 软件编解码器，OPUS 编码正常初始化
+9. 修复了 /api/default_settings 返回非法 JSON、卸载残留后台守护的问题
+10. 优化了国内 APP 运行性能 — 开机后异步补跑 bg-dexopt-job，空闲回收应用缓存
+11. 优化了画面流畅度 — GPU 档提升至 60fps/长边 1280/10Mbps，软件档同步降档避免浪费
+12. 优化了 GPU 兼容性判断 — 由按 CPU 架构一刀切改为按宿主实际能力检测
+13. 优化了安装/升级向导体验 — 补充首次启动耗时与启动异常诊断入口，升级不再询问端口
+14. 优化了应用中心介绍文案 — 精简免费与第三方付费声明，保留项目链接与官网
+15. 新增开机守护 — 安卓起不来时自动诊断、放权 GPU、必要时回退软件渲染并重建容器
+16. 新增 seccomp 安全过滤与安全自查文件 security.status — 屏蔽加载内核模块、reboot 重启整机、改系统时间等危险调用
+17. 新增依赖应用声明（install_dep_apps = binder_linux_driver）、音频守护 audio_fix.py、端口脚本 set_ports.sh
+18. 删除了升级向导的端口设置步骤 — 改由 scripts/set_ports.sh 一键查看/修改端口
+19. 修改了 TURN 中继端口保持 50000-50100 不变 — 撤销自动避让，避免破坏已有端口转发规则
+20. 修改了镜像版本配置与容器权限 — 收敛到 runtime.conf 单一可信源（默认安卓 12）；容器内 su 不可执行、ADB 默认仅监听 127.0.0.1
+
+> 详细说明见包内《应用介绍》的「v3.8.9 更新说明」；应用中心详情页的「更新内容」与本列表同源。
 
 ---
 
@@ -1475,7 +1643,7 @@ docker rm -f androidemu-android androidemu-webrtc 2>/dev/null
 
 > **关于独立 Docker 容器版**：本项目目前以飞牛应用中心 FPK 包形式发布，暂不提供独立 Docker Compose 部署方案。独立 Docker 容器版本计划在应用中心上架稳定后另行提供，敬请期待。
 
-1. **音频**：3.7.3+ 已启用音频（Codec2 Opus 软件编码器），需在连接设置中手动开启；3.8.x 进一步优化了音频稳定性。注意：音量大小与宿主系统实际音量匹配（容器内设100但宿主系统只设50，则按50输出）
+1. **音频**：v3.8.9 已彻底修复 OPUS 音频编码器（启用 Codec2），默认启用，需在连接设置中手动开启音频。注意：音量大小与宿主系统实际音量匹配（容器内设100但宿主系统只设50，则按50输出）
 2. **外网访问**：飞牛反向代理只透传 TCP，WebRTC 媒体流（UDP）无法通过，自动降级为 WebSocket 投屏
 3. **飞牛 APP**：部分版本 WebView 对 WebSocket 代理支持有限，建议用手机浏览器
 4. **ARM 应用兼容性**：含反模拟器检测或复杂 JIT 的 ARM64 应用可能闪退（属翻译层能力边界）

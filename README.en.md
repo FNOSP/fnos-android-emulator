@@ -2,7 +2,7 @@
 
 [中文](README.md) | **English**
 
-![version](https://img.shields.io/badge/version-v3.8.7-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
+![version](https://img.shields.io/badge/version-v3.8.9-blue) ![arch](https://img.shields.io/badge/arch-x86__64%20%7C%20arm64-orange) ![image](https://img.shields.io/badge/image-~2GB-green) ![stars](https://img.shields.io/github/stars/lin1740/fnos-android-emulator) ![last-commit](https://img.shields.io/github/last-commit/lin1740/fnos-android-emulator) ![license](https://img.shields.io/github/license/lin1740/fnos-android-emulator)
 
 📚 **User Manual & FAQ**: See sections below
 
@@ -31,6 +31,7 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - [Tech Stack & Translation Layers](#tech-stack--translation-layers)
 - [Audit Compliance Notes](#audit-compliance-notes)
 - [FAQ](#faq)
+- [Changelog](#changelog)
 - [Known Limitations](#known-limitations)
 - [Feedback Links & Channels](#feedback-links--channels)
 - [Support the Publisher & Contributors](#support-the-publisher--contributors)
@@ -75,6 +76,21 @@ Based on Android container + Scrcpy over WebRTC (screen service) dual-container 
 - **Domestic App Performance Optimization **: System-level optimizations for high-resource domestic apps (Douyin/Kuaishou etc.): background process limit (4), disable auto-sync/background data/network scanning, CPU/GPU deep optimization, animation half-speed (0.5), lmkd memory management optimization
 - **Go Merged Daemon **: Audio fix + resolution auto-switch merged into single androidemu_daemon process, reducing Go runtime memory footprint (~5-8MB saved)
 - **Optional Resource Limits **: Pre-configured commented CPU/memory limits in docker-compose.yaml, users can enable based on NAS performance
+- **[v3.8.9] seccomp Hardening (Android main container)**: Docker disables the default seccomp filter under `privileged`, yet redroid requires privileged; this release attaches a custom seccomp filter to that container, denying syscalls that would otherwise act on the whole NAS — loading/unloading kernel modules, kexec, `reboot` (would reboot the NAS), swapon/swapoff, changing the system time, and raw I/O port access (`insmod` inside the container now returns Operation not permitted). Verified not to affect boot, casting/audio, ADB or APK installs
+- **[v3.8.9] Security Self-check Artifact**: every deployment writes `security.status` into the app data directory (seccomp state, in-container `su` mode, ADB listen address, SELinux state) for users and reviewers to verify
+- **[v3.8.9] Security Documentation Update**: the bundled Permission Statement now documents the verified SELinux findings (fnOS kernel loads no SELinux LSM — the host uses AppArmor), the scope of the seccomp hardening and the residual risk, with reproducible verification commands
+- **[v3.8.9] Declared Dependency App (binder)**: the manifest now declares `install_dep_apps = binder_linux_driver`, so the App Center page shows a "Dependencies" card and asks the user to install and enable the dependency app "binder_linux" first; if it is missing or disabled, the App Center blocks installing/enabling this app and says so. On x86 and on kernels without built-in binder, that dependency app loads the kernel module and mounts binderfs (fnOS 6.18.18 and later already build binder in; the dependency app then only pulls it up and verifies)
+- **[v3.8.9] WebRTC Network Architecture Fix**: The scrcpy-over-webrtc container is switched from host to bridge network with published port mapping (8443/3478/TURN relay range), fixing the WebRTC ICE handshake failure / device-offline issue caused by the redroid container being unable to reach host ports; the agent connects to signaling/TURN via the container address, and browser-side TLS is terminated by the fnOS unified gateway (USE_TLS disabled inside the container)
+- **[v3.8.9] TURN Relay Range Fixed at 50000-50100**: the relay range stays `50000-50100` (compose `ports` and the in-container `COTURN_MIN_PORT`/`COTURN_MAX_PORT` must match — coturn does no port translation). It **does not change between versions**: the earlier "auto-avoidance / 25000-25099" experiment was reverted because it rewrites the port mapping and breaks port-forwarding rules that existing users already configured. To change it, use `bash scripts/set_ports.sh` and update your router/tunnel accordingly
+- **[v3.8.9] OPUS Audio Encoder Fix (Codec2)**: Enables the Codec2 software codec (debug.stagefright.ccodec=1, c2software=1, restart media service) so the default OPUS codec used by scrcpy-over-webrtc initializes correctly; adds a new audio_fix.py daemon (30-second watchdog auto-reapply), fully fixing no-audio and connection crashes
+- **[v3.8.9] DEFAULT_SETTINGS Single-Quote Fix**: Fixes the docker-compose env var wrapped in single quotes, which made /api/default_settings return invalid JSON and the frontend fail to parse it
+- **[v3.8.9] Security Hardening**: The deploy flow automatically makes the container image's bundled userdebug `su` non-executable (re-applied after every container rebuild); the ADB debug port binds to 127.0.0.1 by default, preventing unauthorized privilege escalation
+- **[v3.8.9] Domestic App Performance Optimization (Runtime-first)**: After deployment, asynchronously runs bg-dexopt-job once (compensating boot-time dex2oat=verify to improve domestic app runtime performance); runs only once per boot, delayed, and never blocks any feature; periodically reclaims app cache when idle
+- **[v3.8.8] Scrcpy-over-WebRTC 0.4.1 Upgrade**: Sync with latest upstream release — fixes headless cloud phone (redroid) connection crashes, strengthens agent stability, smart screen-off frequency reduction, dynamic TURN server allocation for more flexible external network access
+- **[v3.8.8] OPUS Audio Encoder Fix**: Injects OMX.google.opus.encoder config into the redroid container, fixes the default OPUS codec initialization failure that caused no audio and connection crashes; audio now works reliably
+- **[v3.8.8] External Network Notice Auto-Hide**: The "external network access" notice introduced in scrcpy-over-webrtc 0.4.1 has no close button; this version injects JS to auto-detect and fade it out after 3 seconds, no longer blocking the screen
+- **[v3.8.8] TUN Device Support**: Auto-detects and creates host /dev/net/tun device and mounts it into the Android container, compatible with VPN/proxy apps (e.g. enterprise remote access, legitimate VPN services), prevents app crashes due to missing virtual network device
+- **[v3.8.8] Security Tightening**: Testing showed no-new-privileges and ro.secure=1/adb.secure=1/selinux=enforcing break in-container processes and the scrcpy connection, so all were reverted; containers keep only least privilege (webrtc only CAP_SYS_NICE) and the app itself runs non-root
 
 ---
 
@@ -86,16 +102,17 @@ This application uses the following ports. Only 8443 is automatically reverse-pr
 | Port | Protocol | Purpose | LAN Use | External Access |
 |------|----------|---------|---------|-----------------|
 | 8443 | TCP | scrcpy-over-webrtc Web UI + signaling | Auto (fnOS reverse proxy) | Requires manual reverse proxy / tunnel |
-| 3478 | TCP+UDP | TURN/STUN relay (required for WebRTC casting) | Auto (host network) | Requires manual port mapping / tunnel |
+| 3478 | TCP+UDP | TURN/STUN relay (required for WebRTC casting) | Auto (host port mapping) | Requires manual port mapping / tunnel |
 | 5556 | TCP | ADB debugging (external adb connect) | **Localhost only by default** (manual open required for LAN) | Requires manual port mapping / tunnel |
-| 50000-50100 | UDP | WebRTC media (TURN relay fallback) | Auto (host network) | Usually no need to expose; TURN works over 3478 |
+| 50000-50100 | UDP | WebRTC media (TURN relay port range) | Auto (host port mapping) | Must also be forwarded if media goes through TURN relay |
 
 > **Notes:**
 > - The fnOS App Center `service_port` only declares 8443 for the unified gateway reverse proxy — it does not mean the app only listens on this one port.
-> - The webrtc container uses `host` network mode, so 3478 and 50000-50100 listen directly on the host, no Docker port mapping needed.
+> - Since v3.8.9 the webrtc container is back on the default `bridge` network: 8443/3478/50000-50100 are published via Docker port mapping (`host` mode is deprecated — in practice it broke ICE negotiation for the agent inside the redroid container, leaving devices offline).
 > - ADB 5556 is forwarded by a host socat process to the Android container's port 5555 — not a Docker mapping.
 > - 8443, 3478, and 50000-50100 work automatically on the LAN with no configuration.
-> - For external access: 8443 goes through a reverse proxy; if using WebRTC casting externally, port 3478 (TCP+UDP) must also be reachable, otherwise you get a black screen or endless loading.
+> - **The TURN relay range is fixed at 50000-50100 and never self-adjusts**: compose `ports` and the in-container `COTURN_MIN_PORT`/`COTURN_MAX_PORT` must match (coturn does no port translation), so the range **does not change between versions**. The earlier "auto-avoidance / 25000-25099" experiment was reverted — it rewrites the port mapping and breaks port-forwarding rules existing users already configured. To change it, use `bash /vol1/@appcenter/androidemu/scripts/set_ports.sh` and update your router or tunnel accordingly.
+> - For external access: 8443 goes through a reverse proxy; if using WebRTC casting externally, port 3478 (TCP+UDP) must also be reachable, otherwise you get a black screen or endless loading. If the direct candidates don't work and media switches to TURN relay, UDP 50000-50100 (the coturn relay port range inside the container) must be reachable as well.
 
 
 
@@ -110,8 +127,9 @@ This application uses the following ports. Only 8443 is automatically reverse-pr
 | Storage | 4 GB free | 8 GB+ (including ~2GB image) |
 | Network | LAN | — |
 
-> **X86 devices**: Docker needs `/dev/dri` passthrough for hardware acceleration; auto-fallback to software rendering if no GPU; must install binder_linux driver before downloading (available in App Center, just search), otherwise app won't work or installation will be rejected.
-> **ARM devices**: Auto uses software rendering (gpu_mode=guest), no extra driver needed, and binder_linux is not required.
+> **Dependency app (required on both architectures)**: this app declares a dependency on the App Center app "binder_linux" (`binder_linux_driver`), which provides the kernel binder support that containerized Android requires. Install and enable it first; if it is missing or disabled, the App Center blocks installing/enabling this app and tells you why. On x86 and on kernels without built-in binder, that dependency app loads the kernel module and mounts binderfs (fnOS 6.18.18 and later already build binder in; the dependency app then only pulls it up and verifies).
+> **X86 devices**: Docker needs `/dev/dri` passthrough for hardware acceleration; auto-fallback to software rendering if no GPU.
+> **ARM devices**: Auto uses software rendering (gpu_mode=guest); most ARM kernels already have binder/binderfs built in, but the "binder_linux" dependency app still has to be installed and enabled.
 >
 > **Architecture Compatibility**: x86_64 has been thoroughly tested on fnOS. ARM64 (aarch64) is adapted at the code level (auto software rendering, in-container binderfs, architecture detection), but due to limited test devices, ARM users are advised to monitor boot status after installation. Feedback is welcome via the channels below.
 
@@ -300,7 +318,7 @@ https://<NAS_IP>:<NAS_PORT>/app/androidemu/
 ```
 Can also directly access screen service native port:
 ```
-https://<NAS_IP>:8443
+http://<NAS_IP>:8443
 ```
 
 WebRTC casting works normally in LAN, low latency, high framerate, all features (file management, terminal, casting settings etc.) available.
@@ -309,12 +327,15 @@ WebRTC casting works normally in LAN, low latency, high framerate, all features 
 
 When accessing via fnOS official remote domain:
 - ✅ WebSocket casting auto-enabled, can view and control screen
-- ⚠️ File management etc. relying on WebRTC DataChannel (UDP) may not work
+- ✅ **Since v3.8.8 (scrcpy-over-webrtc 0.4.1)**: scrcpy-over-webrtc specifically adapts to the fnOS gateway, auto-switching to WebSocket over fnOS official gateway port 443 when detecting fnOS environment, more stable for external network access
+- ⚠️ File management, terminal, etc. relying on WebRTC DataChannel (UDP) may be limited externally (fnOS reverse proxy only passes TCP)
 - ⚠️ Framerate and latency affected by upstream bandwidth
 
 > Reason: fnOS reverse proxy only passes TCP (HTTP/HTTPS/WebSocket), not UDP. WebRTC media stream uses UDP, so auto-downgrades to WebSocket casting.
 >
 > v3.6.7+ enhanced external network auto-adaptation: auto-detect and switch to WebSocket casting mode, if switch fails then provide MJPEG fallback screen, ensuring external network access always available.
+>
+> **v3.8.8 external terminal/file center note**: scrcpy-over-webrtc 0.4.1 adds "dynamic TURN server allocation", which attempts to carry DataChannel data over WebSocket in fnOS gateway environment. If terminal/file center still doesn't work externally, recommend using on LAN, or exposing both TCP 8443 and UDP 3478 via frp or similar tools (see below).
 
 ### fnOS APP
 
@@ -327,7 +348,7 @@ When accessing via fnOS mobile APP built-in browser:
 If you have public IP or use intranet penetration (frp, ZeroTier, Tailscale etc.):
 - ✅ Map port 8443 to external network, can use WebRTC casting directly
 - ✅ Need to set "External access address (WebRTC media stream)" in "Casting Settings" to your public domain or IP
-- ✅ TURN relay server built-in, ensure UDP 3478 port reachable
+- ✅ TURN relay server built-in, ensure UDP 3478 port reachable; if media has to go through TURN relay (the fallback when direct candidates fail), also forward UDP 50000-50100 (the relay port range)
 
 #### External Network Access Guide (Important)
 
@@ -357,6 +378,8 @@ remote_port = 3478
 ```
 
 After configuration, access via `http://<your-domain>:8443`, all features including WebRTC casting, file management, and terminal are available.
+
+> Note: the TURN server (coturn) inside the container relays media over **UDP 50000-50100** (see the port mapping in `docker-compose.yaml`). When the direct ICE candidates (STUN/srflx) are unreachable, media falls back to TURN relay, so that UDP port range must be reachable too (forward the range if your tunnel tool supports port ranges, otherwise use plain port mapping or a firewall/route rule).
 
 **How to fix slow WS casting connection:**
 1. Wait 10-30 seconds patiently, WebRTC will timeout and auto-fallback to WS
@@ -503,6 +526,8 @@ Cloud Phone officially provides a standalone **Android APP client**, offering a 
 > **Important**: ADB is an Android debugging channel — **it only runs commands, installs APKs, and debugs; it does NOT stream the screen**. To view the Android screen, use the Scrcpy-over-WebRTC web interface (`http://<NAS_IP>:8443`) or the Scrcpy-over-WebRTC mobile APP. Remote control tools like Scrcpy / QtScrcpy that depend on scrcpy-server are **incompatible** (this container uses cloudphone-agent, no scrcpy-server), and will show endless loading with no screen.
 
 ADB 5556 **binds to 127.0.0.1 by default** (security: ADB has no password), accessible from the NAS itself only. To connect from another LAN device (e.g. your PC), first manually open the port:
+
+> ⚠️ **Security note**: the container image is a userdebug build (`ro.debuggable=1`), so **anyone who can reach port 5556 effectively has in-container root** (`adb shell` is root directly, no `su` needed). Open it only when you need to debug, only on a trusted LAN, and **switch `ADB_BIND` back to `127.0.0.1` when you are done**. Never map 5556 to the public internet (see section 7 of the bundled Permission Statement and section 9 of the audit compliance notes below).
 
 ### 1. Open ADB Port 5556
 
@@ -673,7 +698,7 @@ docker exec -u 0 androidemu-android setprop persist.sys.serialconsole 0
 │  │                  │  │                 │  │
 │  │  Android 12      │  │  Signaling :8443│  │
 │  │  ADB :5556       │  │  TURN  :3478    │  │
-│  │  bridge network  │  │  host network   │  │
+│  │  bridge network  │  │  bridge network │  │
 │  │  privileged      │  │  SYS_NICE       │  │
 │  └──────────────────┘  └─────────────────┘  │
 │            │                    │           │
@@ -715,7 +740,7 @@ androidemu goes through **3 core translation/conversion layers** from hardware t
 - **scrcpy** captures frames via Android's surfaceflinger
 - Encodes into **H.264** video stream (2-10Mbps bitrate, 960px long edge)
 - Transmits to browser via **WebRTC** (TURN/STUN relay + P2P)
-- Browser decodes and displays; **audio is enabled** (3.7.5+ fix: enable Codec2 framework to load c2.android.opus.encoder software encoder)
+- Browser decodes and displays; **audio is enabled** (v3.8.9 fix: enables the Codec2 software codec so scrcpy-over-webrtc's default OPUS codec initializes correctly, kept alive by the audio_fix.py watchdog; audio streams reliably)
 
 ### Layer 4: ABI Instruction-Set Translation Layer (libndk_translation, enabled by default)
 
@@ -764,11 +789,11 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 - Auto-downgrade via `_drop_privileges()` function (auto-switch when uid=0)
 - config/privilege declares `run-as=package`
 
-### 3. Host Network Mode
+### 3. Network Mode (v3.8.9: bridge + host port mapping)
 
-- `androidemu-webrtc` container uses `network_mode: host`
-- **Reason**: fnOS blocks "bridge container → host LAN IP" access, bridge mode prevents screen service backend from connecting to local ADB port
-- **Impact**: Listening ports exactly same as original port mapping (8443 TCP, 3478 TCP/UDP, 50000-50100 UDP), no new ports; container still doesn't use privileged
+- `androidemu-webrtc` (screen service) uses the default `bridge` network since v3.8.9, publishing only 8443 TCP, 3478 TCP/UDP, 50000-50100 UDP
+- **Reason**: fnOS blocks "bridge container → host LAN IP" access; v3.8.8 switched to `host` mode for that reason, but testing showed that in host mode the agent inside the redroid container can only reach signaling/TURN through the bridge gateway, so the ICE negotiation path fails (WebRTC connection failure, device never comes online). v3.8.9 therefore switches back to bridge: redroid and webrtc share the `androidemu_default` network, and the agent connects directly to signaling (8443) and TURN (3478) via the compose service name `webrtc` — pure container-to-container traffic that never crosses the host firewall
+- **Impact**: Listening ports are exactly the same as the original port mapping (8443 TCP, 3478 TCP/UDP, 50000-50100 UDP), no new ports; the container still doesn't use privileged; browser-side TLS is terminated by the fnOS unified gateway (USE_TLS=false inside the container, since the agent doesn't support TLS)
 
 ### 4. Docker Group Permission
 
@@ -809,6 +834,29 @@ This app has passed fnOS official 7-point self-check (basic info, permission dec
 - **Domestic mirror acceleration**: GMS image pull supports multi-source fallback (Nanjing University ghcr.nju.edu.cn → DaoCloud docker.m.daocloud.io → GHCR official), automatically selecting the fastest available source in domestic network environments
 - **Auto-retry on failure**: If GMS installation encounters boot timeout or image pull failure, the installation marker file is not removed; it automatically retries on next container boot, avoiding the "thought it was installed but actually wasn't" issue
 
+### 8. TUN Device & VPN/Proxy App Compatibility
+
+- **Status**: Since v3.8.8, the `/dev/net/tun` virtual network device is mounted into the Android container; the install script auto-detects and creates the host tun device
+- **Purpose**: Only for compatibility with apps requiring virtual network interfaces (e.g. enterprise remote access, legitimate VPN services), scoped to the container only, does not affect host network security
+- **Security statement**: This application does not encourage or support any use of proxy or VPN tools that violates national communications regulations; users must comply with local laws, and all liability for illegal use rests with the user
+- **Permission impact**: TUN is a standard Linux virtual network device, does not add host privileges, and does not break container isolation boundaries
+
+### 9. SELinux, In-Container Root and the v3.8.9 seccomp Hardening
+
+- **SELinux status**: `getenforce` inside the container returns `Disabled` because the fnOS kernel **does not load the SELinux LSM** (verified: `/sys/kernel/security/lsm` = `capability,landlock,lockdown,yama,bpf,apparmor,ima,evm` — the host uses AppArmor), and `/sys/fs/selinux` is absent inside the container. SELinux therefore **cannot** be enabled by this application (the kernel does not provide the module — it was not "left unpatched"); forcing it via redroid boot parameters blocks in-container system services and prevents the container from booting (tested, reverted in v3.8.8)
+- **The real boundary of in-container root (stated plainly)**: the Android main container `androidemu-android` must run `privileged` because of the upstream redroid requirement (non-privileged variants never reach the boot stage — see [redroid-doc #591](https://github.com/remote-android/redroid-doc/issues/591)). Because of that, in-container root is **not** the same as root in an ordinary unprivileged container: Docker lifts the default seccomp/AppArmor constraints under `privileged`, and `cap_drop` / device rules **no longer take effect** (verified: CapEff stays at the full `0x1ffffffffff`). What this application does to narrow it down: ① the passed-through devices are trimmed to the three required ones (`/dev/dri`, `/dev/binder`, `/dev/net/tun`); ② a custom seccomp filter rejects the most dangerous syscalls with `EPERM` (next bullet)
+- **v3.8.9 seccomp hardening**: the redroid service in `docker-compose.yaml` uses `security_opt: seccomp=<app-dir>/docker/androidemu-redroid-seccomp.json` (default-allow + deny `init_module`/`finit_module`/`delete_module`, `kexec_load`/`kexec_file_load`, `reboot`, `swapon`/`swapoff`, `acct`, `iopl`/`ioperm`, `settimeofday`/`clock_settime`). Inside a container these calls would otherwise act on the whole NAS (e.g. `reboot` would reboot the NAS, changing the clock would affect other services on it). Verified: `Seccomp: 2` inside the container, `insmod` returns Operation not permitted, while boot, casting/audio (Codec2 Opus), ADB, APK installs and container stop/rebuild all still work
+- **Existing attack-surface reductions**: ADB 5556 binds to `127.0.0.1` only by default (opt-in from the panel; the image is a userdebug build, i.e. whoever reaches 5556 gets in-container root — close it when done); the image's userdebug `su` is set to mode `000` on every deployment (re-applied after container rebuilds); no Magisk is bundled; the app itself runs as the `docker-androidemu` user (run-as=package) with no host root resident processes
+- **Residual risk (not glossed over)**: if in-container root is obtained (e.g. from outside via self-opened ADB, or by installing an untrusted APK carrying a privilege-escalation exploit), its reach is **not limited to the container** — a privileged container's `/dev` contains host device nodes (disks, `/dev/mem`, …). That is an inherent property of the upstream-required `privileged` flag, and Docker cannot narrow it while keeping privileged (`cap_drop` is ignored — verified). The v3.8.9 seccomp filter closes the most direct escape/damage paths, but it cannot remove that inherent property. Therefore: do not expose this app's ports directly to the internet; open ADB on the LAN only when needed and close it afterwards; install only APKs from trusted sources
+- **Self-check commands** (with the container running):
+  ```bash
+  docker exec androidemu-android sh -c 'grep ^Seccomp /proc/1/status'   # expect Seccomp: 2
+  docker exec androidemu-android ls -l /system/xbin/su                   # expect ----------
+  ss -tln | grep 5556                                                    # expect 127.0.0.1
+  cat /vol1/@appdata/androidemu/security.status                          # written by each deployment
+  ```
+- **Relationship with fnOS audit**: fnOS security audit focuses on whether the application runs as host root or breaks container isolation to affect the host. The in-container root is a necessary condition for Android system operation (upstream redroid technical requirement), and the application itself does not request host root; the mitigation measures and residual risk are stated above and can all be reproduced and verified on the device
+
 ---
 
 ## FAQ
@@ -837,11 +885,49 @@ A: This is a state machine error from the **fnOS mobile app** App Center, usuall
 
 ### Q: "Unable to install androidemu - script execution error with unknown reason" during first-time installation
 
-A: First check if the **binder driver** is installed:
-- **x86 devices**: Install the "binder_linux driver" dependency app from the fnOS App Center first, which creates the `/dev/binder` device node, then install this app
+A: First check whether the **dependency app "binder_linux"** is installed and enabled:
+- This app's manifest declares the dependency `binder_linux_driver` (display name "binder_linux"). Install and enable it in the fnOS App Center, then install this app; the App Center blocks the install while the dependency is unmet ("dependency binder_linux not installed or not enabled").
+- **x86 and kernels without built-in binder**: the dependency app loads the kernel module, mounts `/dev/binderfs` and creates `/dev/binder` etc. (fnOS 6.18.18 and later already build binder in — the dependency app then only pulls it up and verifies).
 - **ARM devices**: Most devices have binder built into the kernel (e.g., RK3588), but some stripped kernels may not have it enabled. Verify kernel support for `CONFIG_ANDROID_BINDER_IPC` / binderfs
 
 If the driver is already installed (or the ARM device natively supports it) but this error still appears, please feedback via any link in the "Feedback Links & Channels" section below, and include `/var/apps/androidemu/var/uninstall_init.log` or the corresponding installation log so we can investigate the specific cause.
+
+### Q: Installation fails with "App Android Emulator (China) installation failed. Reason: Application callback script execution exception."
+
+A: This is caused by an error when fnOS App Center executes the installation callback script (install_callback). Common causes and troubleshooting:
+
+**1. Check installation log**
+```bash
+cat /var/apps/androidemu/var/install.log
+```
+The log records each step of script execution and specific error messages.
+
+**2. Common causes:**
+| Cause | Solution |
+|-------|----------|
+| dependency app not installed/enabled | Install and enable the "binder_linux" dependency app (`binder_linux_driver`) from the App Center first, then retry |
+| Insufficient disk space (<4GB) | Free up disk space, ensure at least 4GB available |
+| Insufficient memory (<2GB) | Close other memory-intensive apps, ensure at least 2GB available |
+| Docker service abnormal | Restart Docker service in fnOS Docker settings, then retry |
+| Script missing execute permission | Rare case, try re-downloading the fpk installation package |
+| Old version residue | Uninstall old version (select delete data), then reinstall |
+
+**3. Manual troubleshooting steps:**
+```bash
+# Check binder device
+ls -la /dev/binder*
+
+# Check disk space
+df -h /
+
+# Check memory
+free -h
+
+# Check Docker status
+docker info | head -5
+```
+
+If none of the above resolves the issue, please send the install.log content to us via the feedback channels below.
 
 ### Q: Can't open after installation, page shows 400 error (may affect multiple apps simultaneously)
 
@@ -950,7 +1036,7 @@ A: When using WebSocket casting (LAN or external network), if "Connection failed
 - **Still connection failed after 2 minutes**: Troubleshoot as follows:
   1. Confirm Android container has fully started (first boot takes ~1-2 minutes), check container status in fnOS Docker
   2. Refresh page and re-enter
-  3. LAN users can try directly accessing `https://<NAS_IP>:8443`
+  3. LAN users can try directly accessing `http://<NAS_IP>:8443`
   4. External network users can use MJPEG fallback screen from top-right prompt
   5. If still unresolved, check container logs or contact us via feedback channels
 
@@ -970,7 +1056,7 @@ docker logs androidemu-android
 |------------|-------|----------|
 | Errors related to `gpu`, `dri`, `SurfaceFlinger` | GPU passthrough failed | See GPU fix commands in "Android container memory very low" below |
 | `out of memory`, `lowmemory` | Insufficient RAM | Close other apps, keep at least 2GB free |
-| Errors related to `binder`, `binderfs` | binder driver missing | x86: install `binder_linux` driver from App Center first |
+| Errors related to `binder`, `binderfs` | binder support missing | Install and enable the `binder_linux` dependency app (`binder_linux_driver`) from App Center first |
 
 **3. ARM device extra check:** Confirm compose has `androidboot.redroid_gpu_mode=guest` (software rendering), ARM devices usually have no GPU passthrough.
 
@@ -1197,17 +1283,26 @@ docker exec androidemu-android getprop sys.boot_completed
 - Returns `1` → booted, skip to step 3
 - Returns empty or `0` → not booted, continue to step 2
 
-**2. Check boot logs:**
+**2. Read the diagnostics file (real logs live here, not in docker logs):**
+
+> ⚠️ **Do not troubleshoot with `docker logs`**: this app disables the serial console for performance (`androidboot.console=0`), so **`docker logs androidemu-android` is always empty** (verified: 0 bytes / 0 lines). `docker logs | grep error` returns nothing — that is expected, not a sign that "there are no logs". Real boot logs exist only in the container's logcat.
+> Since v3.8.9 a **boot guard** (`scripts/boot_guard.sh`) continuously watches the boot state, writes diagnostics (with real logcat evidence) to `/var/apps/androidemu/var/boot_diag.status`, and **automatically falls back to software rendering and recreates the container when there is clear GPU/DRM crash evidence** (one-shot), so manual intervention is usually unnecessary.
+
 ```bash
-docker logs androidemu-android --tail 80 2>&1 | grep -iE "error|fail|panic|binder|surface|zygote|boot"
+cat /var/apps/androidemu/var/boot_diag.status         # diagnostics written by the guard
+bash /var/apps/androidemu/scripts/boot_guard.sh once  # run a diagnosis right now
+bash /var/apps/androidemu/scripts/boot_guard.sh status
 ```
 
-| Log keyword | Cause | Fix |
-|------------|-------|-----|
-| `binder`, `binderfs` | binder driver missing | x86: install `binder_linux` from App Center first, then `docker restart androidemu-android` |
-| `SurfaceFlinger`, `gpu`, `dri` | GPU passthrough failed | Run GPU fix commands below |
+| Diagnosis / keyword | Cause | Fix |
+|--------------------|-------|-----|
+| `privileged=false` | container lost privileges (Android cannot initialize) | App Center "Disable → Enable" to recreate the container; if it persists, report it |
+| logcat shows `binder` errors, `container_binder` empty | kernel binder unavailable | Install and enable the `binder_linux` dependency app from App Center, then `docker restart androidemu-android` |
+| `logcat_gpu_drm_hits` high / `EGLConfig` / `Failed to open /dev/dri` | GPU passthrough fails inside the container | The guard falls back to software rendering automatically; you may also run the GPU fix commands below |
 | `out of memory`, `lowmemory` | Insufficient RAM | Close other apps, keep at least 2GB free |
 | `zygote` restarting | System service crash | Reinitialize data volume (wipes Android data): `docker compose -p androidemu down && docker volume rm androidemu-data && docker compose -p androidemu up -d` |
+
+> When reporting a boot problem, simply attach the contents of `boot_diag.status` — it already includes container state, privileged/devices, binder, GPU hit counts and the key logcat lines.
 
 **3. GPU fix (for graphical glitches or SurfaceFlinger crashes, run in order):**
 
@@ -1252,9 +1347,9 @@ Step 3: Copy dependency library to Android container
 docker cp /var/apps/androidemu/var/agent/libsys_core.so androidemu-android:/data/local/tmp/libsys_core.so
 ```
 
-Step 4: Inject and start agent (replace `<NAS_IP>` with your NAS LAN IP)
+Step 4: Inject and start agent (since v3.8.9 signaling is plaintext inside the container; use `host.docker.internal` to point at the bridge gateway — **do NOT use the host LAN IP**; or simply use the bundled `scripts/agent_helper.sh deploy <dir>`)
 ```bash
-docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling wss://<NAS_IP>:8443/register_agent -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=udp,turn:cloudphone_user:cloudphone_secure_password@<NAS_IP>:3478?transport=tcp,stun:<NAS_IP>:3478' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
+docker exec -u 0 androidemu-android sh -c "chmod 755 /data/local/tmp/cloudphone-agent && export CP_AGENT_JAR=/data/local/tmp/libsys_core.so && nohup /data/local/tmp/cloudphone-agent -signaling ws://host.docker.internal:8443 -id androidemu -ice-servers 'turn:cloudphone_user:cloudphone_secure_password@host.docker.internal:3478?transport=udp' -jar /data/local/tmp/libsys_core.so > /data/local/tmp/agent.log 2>&1 &"
 ```
 
 Step 5: Wait 3 seconds
@@ -1335,7 +1430,7 @@ After confirming `PUBLIC_IP` is your LAN IP, reopen the cloud phone page to conn
 
 ### Q: No sound / Low volume
 
-A: **Audio is fixed in version 3.7.3+**, Opus software encoder is enabled by default. If still no sound, please check the following points:
+A: **OPUS audio encoder is fully fixed in v3.8.9 (Codec2)**, enabled by default. If still no sound, please check the following points:
 
 1. **Manually enable audio in connection settings**:
    - Desktop (fnOS Web interface): Check the "Audio" option in CloudPhone connection settings
@@ -1349,7 +1444,7 @@ A: **Audio is fixed in version 3.7.3+**, Opus software encoder is enabled by def
    - Third-party software may not be compatible with CloudPhone's Opus audio stream protocol; forcing audio on may cause connection failure or no sound
    - CloudPhone APP and fnOS Web interface have built-in audio support; official clients are recommended
 
-> Technical note: redroid image defaults to `debug.stagefright.ccodec=0` which disables the Codec2 framework, causing opus encoder not to load. Version 3.7.3 uses `audio_fix.py` watchdog to automatically set `debug.stagefright.ccodec=1` to enable Codec2, and auto-restores after container reboot.
+> Technical note: v3.8.9 fixes the OPUS audio encoder by enabling the Codec2 software codec (setprop debug.stagefright.ccodec=1, c2software=1, restart media service) so the c2.android.opus.encoder already shipped in the container's swcodec config is properly registered; the audio_fix.py watchdog re-applies it every 30 seconds. The older "inject OMX.google.opus.encoder / media_codecs_google_audio.xml" approach is deprecated.
 
 ### Q: External network screen laggy
 
@@ -1451,6 +1546,70 @@ Key technical conclusions verified during development, for secondary development
 - **Upgrade scripts must be robust**: fnOS upgrade process first executes old version uninstall_init, any command failure or stdout output causes "script execution error with unknown reason", must set +e + output redirect + all commands || true
 - **CRLF line endings cause Linux script errors**: All shell/Python scripts must use LF line endings, otherwise `$'\r': command not found`
 - **App process downgrade needs attention to IPC**: After gateway.py downgrade, `is_mine(pid)` can only check current user processes, audio watchdog must also downgrade to same user, otherwise gets repeatedly started
+- **webrtc container cannot cap_drop ALL**: coturn/node processes need basic capabilities; `cap_drop: ALL` causes the container to repeatedly crash and restart, memory drops to 0B, UI shows 502; only `cap_add: SYS_NICE` is needed
+- **redroid container cannot force selinux=enforcing**: Docker containers share the host kernel, and SELinux policies inside the container are incomplete; forcing enforcing blocks system services, causing container crashes and memory dropping to 0B; keeping default Disabled is the standard upstream redroid configuration
+- **redroid container cannot use ro.secure=1/adb.secure=1**: affects scrcpy-over-webrtc's ADB connection to the Android container, causing device to stay offline; keeping default ro.secure=0 is the standard redroid container configuration
+- **The webrtc container must not use host network mode**: v3.8.8 switched to `host` because fnOS blocks "bridge container → host LAN IP", but testing showed that in host mode the agent inside the redroid container can only reach signaling/TURN via the bridge gateway, so the ICE negotiation path fails (WebRTC handshake failure, device never comes online); v3.8.9 switched back to bridge, publishing 8443/3478/TURN relay range (fixed 50000-50100) on the host, with the agent connecting directly to the compose service name `webrtc`
+- **The TURN relay range is deliberately kept at 50000-50100 (even though it sits inside the OS ephemeral range)**: during v3.8.9 development the range was moved to 25000-25099 with "auto-avoidance", because the Linux ephemeral range defaults to 32768-60999 and a single occupied port (measured: `pxy` holding 50054/UDP on an ARM NAS) makes Docker's per-port binding fail — the **whole webrtc container stays in `Created` and never starts**, so the app looks installed but devices never come online. **That change was reverted**: rewriting the port mapping breaks port-forwarding rules existing users already configured, which costs far more than it saves. Final decision: **keep 50000-50100, no auto-avoidance**, and document the risk honestly. If you do hit a conflict, change it with `scripts/set_ports.sh` and update your router; compose `ports` and the in-container `COTURN_MIN_PORT`/`COTURN_MAX_PORT` must change together (coturn does no port translation)
+- **A top-level `scripts/` directory in the FPK is never deployed by fnOS**: on the test machine, 30+ installed apps all have the layout `cmd/ config/ etc→ home→ ICON* LICENSE manifest meta→ target→ tmp→ var→ wizard/` — there is no `scripts/`. The Go supervisor/unified daemon we had shipped under the FPK top-level `scripts/` had therefore **never been installed anywhere** (cmd/main logged "script not found" on every start); v3.8.9 removed those binaries from the package and cleaned up the dead start-up calls. Executables must live under `app/` so they land in `${TRIM_APPDEST}/` via `app.tgz`
+- **OPUS encoder is enabled via Codec2**: the redroid image already has the opus library (/system/lib64/libcodec2_soft_opusenc.so) and the swcodec c2.android.opus.encoder entry, but the Codec2 software codec is disabled by default; v3.8.9 enables it via setprop debug.stagefright.ccodec=1 + c2software=1 and a media service restart (no OMX alias injection needed; the old media_codecs_google_audio.xml approach is deprecated)
+- **`cap_drop` is ignored under privileged; seccomp still applies**: with `privileged: true` plus `cap_drop`, CapEff inside the container remains the full `0x1ffffffffff` (Docker records the CapDrop entry but does not apply it), so capabilities cannot be used to narrow a privileged container; however `security_opt: seccomp=<profile>` **is** applied under privileged (`Seccomp: 2` inside the container), which is what v3.8.9 uses to deny module loading / kexec / reboot / swap / clock changes
+- **no-new-privileges is NOT enabled in this app**: testing showed it breaks in-container process permissions (audio/video encoding, signaling) for both redroid and webrtc, so it has been removed from both containers; escalation protection is instead provided by binding ADB to 127.0.0.1 only, disabling the userdebug `su`, running the webrtc container without extra privileges, and attaching a custom seccomp filter to the redroid container (v3.8.9)
+- **The casting entrypoint is a full fork — track upstream drift**: this app replaces the upstream `/app/entrypoint.sh` with `entrypoint_custom.sh` (to fix coturn listening only on the bridge, add de-privileging and JS injection). The cost: new upstream entrypoint contracts are not picked up automatically — upstream has since added `CLOUDPHONE_DEVICE_SECRET` (device registration secret); v3.8.9 added the passthrough plus `-device-secret` on the agent side. **Diff the upstream entrypoint after every image update**: `docker run --rm --entrypoint cat <img> /app/entrypoint.sh`
+- **The keystore fix must tolerate a missing file**: `/data/misc/keystore/persistent.sqlite` is the keystore2 (Android 11+) database; treating "owner mismatch = corrupt" would flag Android 9/10 (which have no such file) as corrupt → delete DB + restart the container every 60s → infinite restart loop. Since v3.8.9 it is treated as "not applicable" when the file is absent
+- **The gateway asset rewrite regex must tolerate subdirectories**: if upstream moves frontend assets from `/assets/<name>.js` to `/assets/js/chunk-*.js`, a flat-only regex silently drops the `?v=` cache-buster (stale chunks get cached); since v3.8.9 the character class includes `/`, a strict superset
+
+---
+
+### Q: Why can port 8443 only be used over HTTP, not HTTPS?
+
+A: **It can do HTTPS — it is deliberately configured as plaintext (`USE_TLS=false`).** The signaling binary does support TLS (it contains `ListenAndServeTLS`) and the image ships `create_certs.sh` plus `server.crt/key/p12`; TLS is simply off by default. Three reasons:
+
+1. **The certificate is self-signed and its CN is hardcoded to `localhost`.** `/app/certs/create_certs.sh` signs with `openssl x509 -req -signkey`, so `https://<NAS_IP>:8443` triggers both "untrusted certificate" and "name mismatch"; mobile WebViews usually block it outright or show a blank page — worse than plain HTTP.
+2. **TLS is already terminated by the fnOS unified gateway.** Opening from the app center goes through the fnOS gateway (443/65535 entry): browser→gateway is HTTPS, gateway→8443 is plaintext over loopback. Adding another self-signed TLS layer on 8443 buys nothing. `gateway.py` reads `USE_TLS=false` from the compose file and automatically uses a plaintext upstream (the startup log shows "上游 明文").
+3. **The in-container agent only speaks `ws://` (the decisive one).** The casting agent inside the Android container connects to signaling over plaintext WebSocket. Switch signaling to wss and the agent does not trust that self-signed certificate, logs an x509 error, and **the device simply never comes online** — no picture.
+
+TLS per network mode (`scripts/net_mode.sh`):
+
+| Mode | `USE_TLS` | Use case |
+|------|-----------|----------|
+| `lan` | `false` | Direct LAN access (default) |
+| `lanhttp` | `false` | LAN with TLS explicitly off (no cert prompt) |
+| `wan` | `true` | Public/domain access |
+| `proxy` | `false` | Tunnel / reverse proxy (TLS terminated upstream) |
+
+**To actually run HTTPS on 8443**, in order of preference:
+
+1. Keep 8443 plaintext and terminate TLS at the fnOS gateway or a reverse proxy with a real certificate — this is the intended design;
+2. Replace `/app/certs/server.crt|key` with a **real CA-signed certificate matching your domain** (e.g. Let's Encrypt), set `USE_TLS=true` in the compose file, then `https://<domain>:8443` works without warnings;
+3. After enabling TLS, **don't forget the agent**: it must switch to wss and trust the certificate — run `bash scripts/agent_helper.sh deploy <dir> --tls`, otherwise devices go offline.
+
+## Changelog
+
+### 3.8.9
+
+1. Fixed containers restarting repeatedly — corrupted keystore DB ownership made system_server crash every ~10 seconds ("Phone is starting…" loop); ownership is now repaired with data preserved, corrected before boot without restarting the container
+2. Fixed the UI mismatch between the fnOS unified gateway and direct port 8443 — mobile-responsive styles and fullscreen handling moved into the page itself so both entry points look identical
+3. Fixed APK/file uploads from the file center and terminal — large uploads now handle `Expect: 100-continue` correctly instead of hanging
+4. Fixed the casting container not auto-updating after an app-center upgrade — upgrades now refresh the `:latest` image and run a smoke check
+5. Fixed redroid12 not supporting NVIDIA GPUs — full detection of NVIDIA devices and the user-space driver stack, with a software-rendering fallback when needed
+6. Fixed `redroid_gpu_node` never being written and NVIDIA passthrough lines lingering in software mode — corrected the config write and cleanup logic that could break container creation
+7. Fixed WebRTC handshake failures and devices never coming online — the casting container is back on the bridge network with explicit port mappings
+8. Fixed no audio and connection crashes — the Codec2 software codec is enabled so OPUS initializes properly
+9. Fixed invalid JSON from `/api/default_settings` and leftover daemons after uninstall
+10. Optimized domestic app performance — `bg-dexopt-job` runs asynchronously after boot and app caches are reclaimed when idle
+11. Optimized smoothness — GPU mode now 60fps / 1280 long edge / 10Mbps, with matching downscaling in software mode
+12. Optimized GPU detection — capability-based probing instead of a per-architecture hardcoded decision
+13. Optimized the install/upgrade wizard — first-boot time and startup diagnostics documented, port step removed from upgrades
+14. Optimized the app-center description — trimmed free/third-party paid wording while keeping project links
+15. Added a boot guard — diagnoses startup failures, grants GPU access, and falls back to software rendering with a container rebuild when needed
+16. Added seccomp filtering and a `security.status` self-check file — blocks module loading, host reboot, time changes and similar dangerous syscalls
+17. Added the dependent-app declaration (`install_dep_apps = binder_linux_driver`), the `audio_fix.py` audio daemon and `scripts/set_ports.sh`
+18. Removed the port step from the upgrade wizard — use `scripts/set_ports.sh` instead
+19. Changed the TURN relay range to stay at 50000-50100 — auto-avoidance reverted to avoid breaking existing port forwards
+20. Changed image/version config and container permissions — `runtime.conf` is the single source of truth (Android 12 by default); `su` is non-executable and ADB listens on 127.0.0.1 only
+
+> See the bundled *Application Introduction* ("v3.8.9 更新说明") for details; the app-center "What's new" entry is generated from the same list.
 
 ---
 
@@ -1458,7 +1617,7 @@ Key technical conclusions verified during development, for secondary development
 
 > **About Standalone Docker Container Version**: This project is currently published as an fnOS App Center FPK package. Standalone Docker Compose deployment is not yet available. The standalone Docker container version is planned for release after the app is stable on the App Center. Stay tuned.
 
-1. **Audio**: Enabled in 3.7.3+ (Codec2 Opus software encoder), need to manually enable in connection settings
+1. **Audio**: v3.8.9 has fully fixed the OPUS audio encoder (via Codec2), enabled by default; need to manually enable audio in connection settings. Note: output volume matches host system volume (if container is at 100% but host is at 50%, output is 50%)
 2. **External network access**: fnOS reverse proxy only passes TCP, WebRTC media stream (UDP) can't pass, auto-downgrades to WebSocket casting
 3. **fnOS APP**: Some versions WebView has limited WebSocket proxy support, recommend mobile browser
 4. **ARM app compatibility**: ARM64 apps with anti-emulator detection or complex JIT may crash (translation layer capability boundary)
